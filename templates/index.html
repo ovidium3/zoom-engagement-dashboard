@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoom Engagement Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .dashboard-container {
+            padding: 20px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #4a89dc;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            font-weight: bold;
+        }
+        .transcription-container {
+            height: 400px;
+            overflow-y: auto;
+        }
+        .transcription-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .participant-name {
+            font-weight: bold;
+            color: #4a89dc;
+        }
+        .transcript-text {
+            margin-left: 10px;
+        }
+        .sentiment-positive {
+            color: #2ecc71;
+        }
+        .sentiment-neutral {
+            color: #f39c12;
+        }
+        .sentiment-negative {
+            color: #e74c3c;
+        }
+        .participant-bar {
+            height: 30px;
+            margin: 5px 0;
+            position: relative;
+        }
+        .participant-bar .bar {
+            height: 100%;
+            background-color: #4a89dc;
+            border-radius: 5px;
+            position: relative;
+        }
+        .participant-bar .label {
+            position: absolute;
+            left: 10px;
+            top: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1;
+        }
+        .participant-bar .value {
+            position: absolute;
+            right: 10px;
+            top: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+        .meeting-id-form {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid dashboard-container">
+        <h1 class="mb-4">Zoom Engagement Dashboard</h1>
+        
+        <div class="row meeting-id-form">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" id="meeting-id-input" class="form-control" placeholder="Enter Meeting ID">
+                    <button class="btn btn-primary" id="load-meeting-btn">Load Meeting</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Left Column: Live Transcriptions -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-comments me-2"></i> Live Transcriptions
+                    </div>
+                    <div class="card-body transcription-container" id="transcription-container">
+                        <div class="text-center text-muted" id="no-transcripts-message">
+                            <p>No transcriptions available. Start a meeting and enable live transcriptions.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column: Engagement Metrics -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar me-2"></i> Participant Talk Time
+                    </div>
+                    <div class="card-body" id="talk-time-container">
+                        <div class="text-center text-muted" id="no-participants-message">
+                            <p>No participant data available.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-smile me-2"></i> Sentiment Analysis
+                    </div>
+                    <div class="card-body" id="sentiment-container">
+                        <div id="sentiment-chart">
+                            <canvas id="sentiment-canvas" width="300" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    
+    <script>
+        // Connect to WebSocket server
+        const socket = io();
+        let currentMeetingId = '';
+        let sentimentChart = null;
+        
+        // Initialize sentiment data
+        const sentimentData = {
+            positive: 0,
+            neutral: 0,
+            negative: 0
+        };
+        
+        // Initialize the dashboard when document is ready
+        $(document).ready(function() {
+            // Set up sentiment chart
+            initSentimentChart();
+            
+            // Handle meeting ID form submission
+            $('#load-meeting-btn').click(function() {
+                loadMeetingData();
+            });
+            
+            $('#meeting-id-input').keypress(function(e) {
+                if (e.which === 13) {
+                    loadMeetingData();
+                }
+            });
+            
+            // Listen for new transcriptions
+            socket.on('new_transcription', function(data) {
+                // Only process if this is for the current meeting
+                if (currentMeetingId === '' || data.meeting_id === currentMeetingId) {
+                    addTranscription(data);
+                    updateSentimentChart(data.sentiment_score);
+                }
+            });
+        });
+        
+        function loadMeetingData() {
+            const meetingId = $('#meeting-id-input').val().trim();
+            if (meetingId === '') {
+                alert('Please enter a valid Meeting ID');
+                return;
+            }
+            
+            currentMeetingId = meetingId;
+            
+            // Clear existing data
+            $('#transcription-container').empty();
+            $('#talk-time-container').empty();
+            resetSentimentChart();
+            
+            // Show loading indicators
+            $('#transcription-container').html('<div class="text-center"><div class="spinner-border text-primary" role="status"></div><p>Loading transcriptions...</p></div>');
+            $('#talk-time-container').html('<div class="text-center"><div class="spinner-border text-primary" role="status"></div><p>Loading participant data...</p></div>');
+            
+            // Fetch transcriptions
+            $.get(`/api/transcriptions/${meetingId}`, function(response) {
+                $('#transcription-container').empty();
+                
+                if (response.status === 'success' && response.data.length > 0) {
+                    // Add transcriptions in reverse order (newest first)
+                    response.data.forEach(function(transcript) {
+                        addTranscription(transcript);
+                        updateSentimentChart(transcript.sentiment_score);
+                    });
+                } else {
+                    $('#transcription-container').html('<div class="text-center text-muted"><p>No transcriptions available for this meeting.</p></div>');
+                }
+            });
+            
+            // Fetch engagement data
+            $.get(`/api/engagement/${meetingId}`, function(response) {
+                $('#talk-time-container').empty();
+                
+                if (response.status === 'success' && response.data.length > 0) {
+                    renderTalkTimeData(response.data);
+                } else {
+                    $('#talk-time-container').html('<div class="text-center text-muted"><p>No participant data available for this meeting.</p></div>');
+                }
+            });
+        }
+        
+        function addTranscription(data) {
+            // Remove no transcripts message if it exists
+            $('#no-transcripts-message').remove();
+            
+            // Format timestamp
+            const timestamp = moment(data.timestamp).format('HH:mm:ss');
+            
+            // Determine sentiment icon and class
+            let sentimentIcon, sentimentClass;
+            if (data.sentiment_score > 0) {
+                sentimentIcon = 'fa-smile';
+                sentimentClass = 'sentiment-positive';
+            } else if (data.sentiment_score < 0) {
+                sentimentIcon = 'fa-frown';
+                sentimentClass = 'sentiment-negative';
+            } else {
+                sentimentIcon = 'fa-meh';
+                sentimentClass = 'sentiment-neutral';
+            }
+            
+            // Create transcription item
+            const transcriptionItem = `
+                <div class="transcription-item">
+                    <span class="text-muted">[${timestamp}]</span>
+                    <span class="participant-name">${data.participant_name}:</span>
+                    <span class="transcript-text">${data.transcript}</span>
+                    <span class="float-end ${sentimentClass}">
+                        <i class="fas ${sentimentIcon}"></i>
+                    </span>
+                </div>
+            `;
+            
+            // Prepend to container (newest first)
+            $('#transcription-container').prepend(transcriptionItem);
+        }
+        
+        function renderTalkTimeData(participants) {
+            // Sort participants by talk time (descending)
+            participants.sort((a, b) => b.talk_time - a.talk_time);
+            
+            // Find the maximum talk time for normalization
+            const maxTalkTime = participants[0].talk_time || 1;
+            
+            // Create HTML for each participant
+            let html = '';
+            participants.forEach(function(participant) {
+                const talkTimePercent = (participant.talk_time / maxTalkTime) * 100;
+                const talkTimeFormatted = formatSeconds(participant.talk_time);
+                
+                html += `
+                    <div class="participant-bar">
+                        <div class="bar" style="width: ${talkTimePercent}%">
+                            <span class="label">${participant.name}</span>
+                        </div>
+                        <span class="value">${talkTimeFormatted}</span>
+                    </div>
+                `;
+            });
+            
+            $('#talk-time-container').html(html);
+        }
+        
+        function formatSeconds(seconds) {
+            const min = Math.floor(seconds / 60);
+            const sec = seconds % 60;
+            return `${min}:${sec.toString().padStart(2, '0')}`;
+        }
+        
+        function initSentimentChart() {
+            const ctx = document.getElementById('sentiment-canvas').getContext('2d');
+            sentimentChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positive', 'Neutral', 'Negative'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#2ecc71', '#f39c12', '#e74c3c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateSentimentChart(sentimentScore) {
+            if (sentimentScore > 0) {
+                sentimentData.positive++;
+            } else if (sentimentScore < 0) {
+                sentimentData.negative++;
+            } else {
+                sentimentData.neutral++;
+            }
+            
+            sentimentChart.data.datasets[0].data = [
+                sentimentData.positive,
+                sentimentData.neutral,
+                sentimentData.negative
+            ];
+            
+            sentimentChart.update();
+        }
+        
+        function resetSentimentChart() {
+            sentimentData.positive = 0;
+            sentimentData.neutral = 0;
+            sentimentData.negative = 0;
+            
+            sentimentChart.data.datasets[0].data = [0, 0, 0];
+            sentimentChart.update();
+        }
+    </script>
+</body>
+</html>
