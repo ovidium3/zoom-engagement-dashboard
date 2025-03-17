@@ -23,11 +23,6 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Initialize database
 init_db()
 
-# Zoom API credentials
-ZOOM_API_KEY = os.getenv('ZOOM_API_KEY')
-ZOOM_API_SECRET = os.getenv('ZOOM_API_SECRET')
-#ZOOM_ACCOUNT_ID = os.getenv('ZOOM_ACCOUNT_ID')
-
 # Routes
 @app.route('/')
 def index():
@@ -40,6 +35,10 @@ def transcription_webhook():
     Handle incoming transcription data from Zoom webhooks
     Documentation: https://developers.zoom.us/docs/api/rest/reference/zoom-api/methods/#operation/webhookTranscription
     """
+    logger.info("WEBHOOK RECEIVED - TRANSCRIPTION")
+    logger.info(f"Headers: {request.headers}")
+    logger.info(f"Body: {request.get_data()}")
+    
     try:
         data = request.json
         logger.info(f"Received transcription webhook: {data}")
@@ -82,17 +81,92 @@ def transcription_webhook():
     
     return jsonify({"status": "ignored"}), 200
 
+@app.route('/webhook/participant_joined', methods=['POST'])
+def participant_joined_webhook():
+    """Handle participant joined events from Zoom webhooks"""
+    logger.info("WEBHOOK RECEIVED - PARTICIPANT JOINED")
+    logger.info(f"Headers: {request.headers}")
+    logger.info(f"Body: {request.get_data()}")
+    
+    try:
+        data = request.json
+        logger.info(f"Received participant joined webhook: {data}")
+        
+        # Verify the webhook event type
+        if data.get('event') == 'meeting.participant_joined':
+            meeting_id = data.get('payload', {}).get('object', {}).get('id')
+            participant = data.get('payload', {}).get('object', {}).get('participant', {})
+            
+            participant_info = {
+                'id': participant.get('id'),
+                'name': participant.get('user_name'),
+                'user_id': participant.get('user_id'),
+                'join_time': datetime.now().isoformat(),
+                'leave_time': None,
+                'duration': 0,
+                'talk_time': 0
+            }
+            
+            # Save participant data to database
+            save_engagement_data(meeting_id, participant_info)
+            
+            # Emit to connected clients
+            socketio.emit('participant_joined', {
+                'meeting_id': meeting_id,
+                'participant': participant_info
+            })
+            
+            return jsonify({"status": "success"}), 200
+    except Exception as e:
+        logger.error(f"Error processing participant joined webhook: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+    return jsonify({"status": "ignored"}), 200
+
+@app.route('/webhook/participant_left', methods=['POST'])
+def participant_left_webhook():
+    """Handle participant left events from Zoom webhooks"""
+    logger.info("WEBHOOK RECEIVED - PARTICIPANT LEFT")
+    logger.info(f"Headers: {request.headers}")
+    logger.info(f"Body: {request.get_data()}")
+    
+    try:
+        data = request.json
+        logger.info(f"Received participant left webhook: {data}")
+        
+        # Verify the webhook event type
+        if data.get('event') == 'meeting.participant_left':
+            meeting_id = data.get('payload', {}).get('object', {}).get('id')
+            participant = data.get('payload', {}).get('object', {}).get('participant', {})
+            participant_id = participant.get('id')
+            
+            # Get the participant from database to update leave time
+            from database import update_participant_leave_time
+            update_participant_leave_time(meeting_id, participant_id)
+            
+            # Emit to connected clients
+            socketio.emit('participant_left', {
+                'meeting_id': meeting_id,
+                'participant_id': participant_id
+            })
+            
+            return jsonify({"status": "success"}), 200
+    except Exception as e:
+        logger.error(f"Error processing participant left webhook: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+    return jsonify({"status": "ignored"}), 200
+
 @app.route('/api/engagement/<meeting_id>', methods=['GET'])
 def get_engagement_data(meeting_id):
     """Fetch engagement data for a specific meeting"""
     try:
-        # Get meeting participants from database
+        # Clean meeting_id by removing spaces
+        meeting_id = meeting_id.replace(" ", "")
+        
+        # Get meeting participants from database only (no API fallback for free accounts)
         participants = get_meeting_participants(meeting_id)
-        
-        # If no participants found, fetch from Zoom API
-        if not participants:
-            participants = fetch_zoom_meeting_participants(meeting_id)
-        
+        print(f"participants: {participants}")
         return jsonify({"status": "success", "data": participants}), 200
     except Exception as e:
         logger.error(f"Error fetching engagement data: {str(e)}")
@@ -102,57 +176,54 @@ def get_engagement_data(meeting_id):
 def get_transcriptions(meeting_id):
     """Fetch transcriptions for a specific meeting"""
     try:
+        # Clean meeting_id by removing spaces
+        meeting_id = meeting_id.replace(" ", "")
+
         transcriptions = get_meeting_transcriptions(meeting_id)
+        print(f"transcriptions: {transcriptions}")
         return jsonify({"status": "success", "data": transcriptions}), 200
     except Exception as e:
         logger.error(f"Error fetching transcriptions: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-def fetch_zoom_meeting_participants(meeting_id):
-    """
-    Fetch participant data from Zoom API
-    Documentation: https://developers.zoom.us/docs/api/rest/reference/zoom-api/methods/#operation/meetingParticipants
-    """
+# Add the new test endpoint here
+@app.route('/test/store-dummy-data/<meeting_id>', methods=['GET'])
+def store_dummy_data(meeting_id):
+    """Store some dummy data for testing"""
     try:
-        # Generate JWT token for Zoom API
-        headers = {
-            "Authorization": f"Bearer {generate_zoom_jwt_token()}",
-            "Content-Type": "application/json"
-        }
+        # Clean meeting_id
+        meeting_id = meeting_id.replace(" ", "")
         
-        # Make request to Zoom API
-        response = requests.get(
-            f"https://api.zoom.us/v2/metrics/meetings/{meeting_id}/participants",
-            headers=headers
+        # Store dummy participant
+        dummy_participant = {
+            'id': '123456',
+            'name': 'Test User',
+            'user_id': '789',
+            'join_time': datetime.now().isoformat(),
+            'leave_time': None,
+            'duration': 0,
+            'talk_time': 0
+        }
+        save_engagement_data(meeting_id, dummy_participant)
+        
+        # Store dummy transcription
+        save_transcription(
+            meeting_id=meeting_id,
+            participant_id='123456',
+            participant_name='Test User',
+            transcript='This is a test transcription',
+            timestamp=datetime.now().isoformat(),
+            sentiment_score=0
         )
         
-        if response.status_code == 200:
-            participants_data = response.json().get('participants', [])
-            
-            # Process and store participant data
-            processed_participants = []
-            for participant in participants_data:
-                participant_info = {
-                    'id': participant.get('id'),
-                    'name': participant.get('name'),
-                    'user_id': participant.get('user_id'),
-                    'join_time': participant.get('join_time'),
-                    'leave_time': participant.get('leave_time'),
-                    'duration': participant.get('duration'),
-                    'talk_time': participant.get('talk_time', 0)
-                }
-                
-                # Save to database
-                save_engagement_data(meeting_id, participant_info)
-                processed_participants.append(participant_info)
-                
-            return processed_participants
-        else:
-            logger.error(f"Failed to fetch participants: {response.status_code}, {response.text}")
-            return []
+        return jsonify({"status": "success", "message": "Dummy data stored"}), 200
     except Exception as e:
-        logger.error(f"Error fetching Zoom meeting participants: {str(e)}")
-        return []
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/webhook-test', methods=['GET'])
+def webhook_test():
+    """Test page for webhook verification"""
+    return "Zoom Webhook Verification Successful", 200
 
 def analyze_sentiment(text):
     """
@@ -176,23 +247,6 @@ def analyze_sentiment(text):
         return -1  # Negative
     else:
         return 0  # Neutral
-
-def generate_zoom_jwt_token():
-    """
-    Generate a JWT token for Zoom API authentication
-    In a production environment, you'd want to use a proper JWT library
-    """
-    # This is a placeholder. In a real app, you would use a proper JWT implementation
-    import jwt
-    import time
-    
-    payload = {
-        'iss': ZOOM_API_KEY,
-        'exp': int(time.time() + 3600)
-    }
-    
-    token = jwt.encode(payload, ZOOM_API_SECRET, algorithm='HS256')
-    return token
 
 @socketio.on('connect')
 def handle_connect():
