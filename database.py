@@ -120,6 +120,64 @@ def save_engagement_data(meeting_id, participant_data):
     finally:
         conn.close()
 
+def update_participant_leave_time(meeting_id, participant_id):
+    """Update the leave time for a participant"""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        # Get current time
+        leave_time = datetime.now().isoformat()
+        
+        # Get join time to calculate duration
+        cursor.execute('''
+        SELECT join_time FROM engagement_data
+        WHERE meeting_id = ? AND participant_id = ?
+        ''', (meeting_id, participant_id))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            join_time = datetime.fromisoformat(result[0])
+            leave_time_dt = datetime.fromisoformat(leave_time)
+            duration = int((leave_time_dt - join_time).total_seconds())
+            
+            # Update record
+            cursor.execute('''
+            UPDATE engagement_data
+            SET leave_time = ?, duration = ?
+            WHERE meeting_id = ? AND participant_id = ?
+            ''', (leave_time, duration, meeting_id, participant_id))
+            
+            conn.commit()
+            logger.info(f"Updated leave time for participant {participant_id} in meeting {meeting_id}")
+        else:
+            logger.warning(f"Participant {participant_id} not found in meeting {meeting_id}")
+    except Exception as e:
+        logger.error(f"Error updating participant leave time: {str(e)}")
+    finally:
+        conn.close()
+
+def update_participant_talk_time(meeting_id, participant_id, talk_time):
+    """Update the talk time for a participant"""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        # Update record
+        cursor.execute('''
+        UPDATE engagement_data
+        SET talk_time = ?
+        WHERE meeting_id = ? AND participant_id = ?
+        ''', (talk_time, meeting_id, participant_id))
+        
+        conn.commit()
+        logger.info(f"Updated talk time for participant {participant_id} in meeting {meeting_id}: {talk_time}s")
+    except Exception as e:
+        logger.error(f"Error updating participant talk time: {str(e)}")
+    finally:
+        conn.close()
+
 def get_meeting_participants(meeting_id):
     """Get all participants for a specific meeting"""
     try:
@@ -184,5 +242,44 @@ def get_meeting_transcriptions(meeting_id, limit=50):
     except Exception as e:
         logger.error(f"Error fetching meeting transcriptions: {str(e)}")
         return []
+    finally:
+        conn.close()
+
+def save_meeting_transcript(meeting_id, transcript_data):
+    """Save a consolidated meeting transcript when meeting ends"""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        # Add a new table if it doesn't exist
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS meeting_transcripts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            meeting_id TEXT NOT NULL UNIQUE,
+            full_transcript TEXT NOT NULL,
+            transcript_data TEXT NOT NULL,  # JSON string containing all transcript segments
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
+        # Consolidate all transcript text
+        full_transcript = '\n\n'.join(f"{item.get('participant_name')} ({item.get('timestamp')}): {item.get('transcript')}" 
+                                     for item in transcript_data)
+        
+        # Convert transcript data to JSON string
+        transcript_json = json.dumps(transcript_data)
+        
+        # Save consolidated transcript
+        cursor.execute('''
+        INSERT INTO meeting_transcripts (meeting_id, full_transcript, transcript_data)
+        VALUES (?, ?, ?)
+        ON CONFLICT(meeting_id) DO UPDATE SET
+        full_transcript = ?, transcript_data = ?, created_at = CURRENT_TIMESTAMP
+        ''', (meeting_id, full_transcript, transcript_json, full_transcript, transcript_json))
+        
+        conn.commit()
+        logger.info(f"Saved consolidated transcript for meeting {meeting_id}")
+    except Exception as e:
+        logger.error(f"Error saving meeting transcript: {str(e)}")
     finally:
         conn.close()
