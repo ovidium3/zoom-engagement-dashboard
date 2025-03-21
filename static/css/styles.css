@@ -1,159 +1,238 @@
+/* Main dashboard layout and colors */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #1a1a1a;
+    background-color: #0f1014;
     color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 .dashboard-container {
-    padding: 20px;
     max-width: 1400px;
     margin: 0 auto;
+    padding: 20px;
 }
 
+/* Header styling */
 h1 {
     color: #ffffff;
     font-size: 1.5rem;
+    font-weight: 500;
     margin-bottom: 1.5rem;
 }
 
+h5 {
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* Card styling to match the design */
 .card {
+    background-color: #1a1c23;
     border: none;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     margin-bottom: 20px;
-    background-color: #2c2c2c;
+    overflow: hidden;
 }
 
 .card-header {
-    background-color: #3a3a3a;
-    color: white;
-    border-radius: 8px 8px 0 0 !important;
+    background-color: #1a1c23;
+    border-bottom: 1px solid #2a2d36;
+    padding: 15px;
     font-weight: 500;
-    font-size: 0.9rem;
-    padding: 10px 15px;
-    border-bottom: 1px solid #444444;
+    font-size: 14px;
+    color: #ffffff;
 }
 
 .card-body {
+    background-color: #1a1c23;
     padding: 15px;
 }
 
-.transcription-container {
-    height: 400px;
-    overflow-y: auto;
-    background-color: #2c2c2c;
-    border-radius: 0 0 8px 8px;
+/* Video grid styling */
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
-.transcription-item {
-    padding: 10px;
-    border-bottom: 1px solid #444444;
-    margin-bottom: 5px;
-}
-
-.participant-name {
-    font-weight: bold;
-    color: #60a5fa;
-}
-
-.transcript-text {
-    margin-left: 10px;
-    color: #e4e4e4;
-}
-
-.sentiment-positive {
-    color: #4ade80;
-}
-
-.sentiment-neutral {
-    color: #facc15;
-}
-
-.sentiment-negative {
-    color: #f87171;
-}
-
-.participant-bar {
-    height: 30px;
-    margin: 8px 0;
+.video-container {
     position: relative;
-    background-color: #3a3a3a;
-    border-radius: 4px;
+    background-color: #1a1c23;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 180px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.participant-bar .bar {
-    height: 100%;
-    background-color: #4ade80;
-    border-radius: 4px;
-    position: relative;
-    transition: width 0.3s ease;
-}
-
-.participant-bar .label {
+.video-container::before {
+    content: '';
     position: absolute;
-    left: 10px;
-    top: 6px;
-    color: white;
-    font-weight: 500;
-    font-size: 0.85rem;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
     z-index: 1;
 }
 
-.participant-bar .value {
+.video-overlay {
     position: absolute;
+    top: 4px;
+    left: 10px;
+    font-size: 12px;
+    color: #ffffff;
+    z-index: 2;
+}
+
+.engagement-indicator {
+    position: absolute;
+    top: 4px;
     right: 10px;
-    top: 6px;
-    color: #e4e4e4;
-    font-weight: 500;
-    font-size: 0.85rem;
-}
-
-.meeting-id-form {
-    margin-bottom: 20px;
-}
-
-.meeting-id-form .form-control {
-    background-color: #3a3a3a;
-    border: 1px solid #4a4a4a;
+    background-color: rgba(0, 0, 0, 0.6);
     color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    z-index: 2;
 }
 
-.meeting-id-form .btn-primary {
-    background-color: #60a5fa;
-    border-color: #60a5fa;
+/* Stylize different talk time indicators */
+.video-container:nth-child(1) .engagement-indicator {
+    background-color: rgba(76, 175, 80, 0.8);
 }
 
-.meeting-id-form .btn-primary:hover {
-    background-color: #3b82f6;
-    border-color: #3b82f6;
+.video-container:nth-child(2) .engagement-indicator {
+    background-color: rgba(103, 58, 183, 0.8);
 }
 
-.speech-controls {
-    margin-top: 20px;
+.video-container:nth-child(3) .engagement-indicator {
+    background-color: rgba(33, 150, 243, 0.8);
+}
+
+.video-container:nth-child(4) .engagement-indicator {
+    background-color: rgba(244, 67, 54, 0.8);
+}
+
+/* Metrics sidebar styling */
+.metrics-sidebar {
+    background-color: #1a1c23;
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.alerts-section {
+    background-color: #1a1c23;
+    padding: 0;
     margin-bottom: 20px;
+}
+
+.alerts-header {
+    background-color: #1a1c23;
+    border-bottom: 1px solid #2a2d36;
     padding: 15px;
-    background-color: #2c2c2c;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
 }
 
-.speech-controls h5 {
+.alerts-content {
+    padding: 15px;
+    color: #adb5bd;
+}
+
+/* Metric cards */
+.metric-card {
+    background-color: #1a1c23;
+    border-radius: 10px;
+    padding: 15px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #2a2d36;
+}
+
+.metric-title {
+    color: #adb5bd;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.metric-value {
     color: #ffffff;
-    font-size: 1rem;
-    margin-bottom: 15px;
+    font-size: 24px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
 }
 
-.speech-controls .form-control {
-    background-color: #3a3a3a;
-    border: 1px solid #4a4a4a;
+.metric-trend {
+    color: #4caf50;
+    font-size: 14px;
+    margin-left: 8px;
+}
+
+.metric-trend i.fa-arrow-down {
+    color: #f44336;
+}
+
+.metric-trend i.fa-arrow-right {
+    color: #ff9800;
+}
+
+/* Participants table */
+.participants-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.participants-table th,
+.participants-table td {
+    padding: 10px 15px;
+    text-align: left;
+    border-bottom: 1px solid #2a2d36;
     color: #ffffff;
 }
 
-.speech-controls label {
-    color: #b0b0b0;
-    font-size: 0.9rem;
+.participants-table th {
+    color: #adb5bd;
+    font-weight: 500;
+    font-size: 12px;
 }
 
+.participants-table td {
+    font-size: 14px;
+}
+
+/* Form controls */
+.form-control {
+    background-color: #2a2d36;
+    border: 1px solid #3a3d46;
+    color: #ffffff;
+    border-radius: 6px;
+}
+
+.form-control:focus {
+    background-color: #2a2d36;
+    border-color: #4a7bff;
+    box-shadow: 0 0 0 0.2rem rgba(74, 123, 255, 0.25);
+    color: #ffffff;
+}
+
+.input-group .btn {
+    background-color: #4a7bff;
+    border-color: #4a7bff;
+}
+
+/* Status indicators */
 .status-indicator {
     display: inline-block;
     width: 10px;
@@ -163,165 +242,194 @@ h1 {
 }
 
 .status-on {
-    background-color: #4ade80;
+    background-color: #4caf50;
 }
 
 .status-off {
-    background-color: #f87171;
+    background-color: #f44336;
 }
 
 .status-pause {
-    background-color: #facc15;
+    background-color: #ff9800;
+}
+
+/* Transcription styling */
+.transcription-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.transcription-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #2a2d36;
+}
+
+.participant-name {
+    font-weight: 500;
+    color: #ffffff;
+}
+
+.transcript-text {
+    margin-top: 5px;
+    color: #dfdfdf;
+}
+
+/* Sentiment indicators */
+.sentiment-positive {
+    color: #4caf50;
+}
+
+.sentiment-neutral {
+    color: #ff9800;
+}
+
+.sentiment-negative {
+    color: #f44336;
+}
+
+/* Participant talk time bars */
+.participant-bar {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.participant-bar .bar {
+    background-color: #4a7bff;
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    margin-right: 10px;
+    min-width: 30px;
+    transition: width 0.5s ease;
+}
+
+.participant-bar .label {
+    color: #ffffff;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.participant-bar .value {
+    color: #adb5bd;
+    font-size: 14px;
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #4a7bff;
+    border-color: #4a7bff;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: #3a6ae8;
+    border-color: #3a6ae8;
 }
 
 .btn-success {
-    background-color: #4ade80;
-    border-color: #4ade80;
+    background-color: #4caf50;
+    border-color: #4caf50;
 }
 
 .btn-warning {
-    background-color: #facc15;
-    border-color: #facc15;
-    color: #1a1a1a;
+    background-color: #ff9800;
+    border-color: #ff9800;
 }
 
 .btn-danger {
-    background-color: #f87171;
-    border-color: #f87171;
+    background-color: #f44336;
+    border-color: #f44336;
 }
 
-/* Engagement metrics styling similar to the image */
-#talk-time-container {
-    padding: 10px;
+/* Meeting controls */
+.meeting-controls {
+    margin-top: 20px;
+    text-align: center;
 }
 
-#sentiment-container {
-    padding: 10px;
-}
-
-/* Adding styles for the participant video grid layout */
-.video-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.video-container {
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    background-color: #2c2c2c;
-    aspect-ratio: 16/9;
-}
-
-.video-overlay {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
-
-.engagement-indicator {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
-
-/* Styles for right sidebar metrics */
-.metrics-sidebar {
-    background-color: #2c2c2c;
-    border-radius: 8px;
-    padding: 15px;
-}
-
-.metric-card {
-    background-color: #3a3a3a;
+.meeting-controls button {
+    background-color: #4a7bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
     border-radius: 6px;
-    padding: 10px;
-    margin-bottom: 10px;
+    font-weight: 500;
+    transition: background-color 0.2s;
 }
 
-.metric-title {
-    color: #b0b0b0;
-    font-size: 0.8rem;
-    margin-bottom: 5px;
+.meeting-controls button:hover {
+    background-color: #3a6ae8;
 }
 
-.metric-value {
-    color: #ffffff;
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
-.metric-trend {
-    color: #4ade80;
-    font-size: 0.8rem;
-}
-
-/* Styling for alerts section */
-.alerts-section {
-    background-color: #3a3a3a;
-    border-radius: 6px;
-    padding: 10px;
-    margin-bottom: 15px;
-}
-
-.alerts-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.alerts-content {
-    color: #b0b0b0;
-    font-size: 0.85rem;
-}
-
-/* Additional styles for buttons and interactive elements */
-.btn-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+/* Immersive view controls like in the screenshot */
+.immersive-view-controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    background-color: #3a3a3a;
-    color: #ffffff;
-    margin: 0 5px;
+    gap: 10px;
 }
 
-.btn-icon:hover {
-    background-color: #4a4a4a;
-}
-
-/* Style for the table in participants section */
-.participants-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.participants-table th, 
-.participants-table td {
-    padding: 8px;
-    font-size: 0.85rem;
-    border-bottom: 1px solid #444444;
-}
-
-.participants-table th {
-    color: #b0b0b0;
-    text-align: left;
+.immersive-view-controls .stop-button {
+    background-color: white;
+    color: #f44336;
+    border: none;
+    padding: 5px 20px;
+    border-radius: 20px;
     font-weight: 500;
 }
 
-.participants-table td {
-    color: #e4e4e4;
+/* Browser-like top bar for video containers */
+.browser-dots {
+    position: absolute;
+    top: 2px;
+    left: 10px;
+    display: flex;
+    gap: 4px;
+    z-index: 2;
+}
+
+.browser-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.browser-dot:nth-child(1) {
+    background-color: #ff5f56;
+}
+
+.browser-dot:nth-child(2) {
+    background-color: #ffbd2e;
+}
+
+.browser-dot:nth-child(3) {
+    background-color: #27c93f;
+}
+
+/* Placeholder user profile styles */
+.user-profile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+/* For responsive design */
+@media (max-width: 768px) {
+    .video-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metrics-sidebar {
+        margin-top: 20px;
+    }
 }

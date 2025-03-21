@@ -25,6 +25,7 @@ def init_db():
             transcript TEXT NOT NULL,
             timestamp TEXT NOT NULL,
             sentiment_score INTEGER DEFAULT 0,
+            browser_id TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''')
@@ -40,8 +41,14 @@ def init_db():
             leave_time TEXT,
             duration INTEGER DEFAULT 0,
             talk_time INTEGER DEFAULT 0,
+            browser_id TEXT,
+            is_active BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+        ''')
+
+        cursor.execute('''
+            ALTER TABLE transcriptions ADD COLUMN browser_id TEXT;
         ''')
         
         conn.commit()
@@ -51,25 +58,129 @@ def init_db():
     finally:
         conn.close()
 
-def save_transcription(meeting_id, participant_id, participant_name, transcript, timestamp, sentiment_score=0):
+def get_meeting_info_db(meeting_id):
+    """
+    Retrieve meeting details from the database
+    
+    Args:
+        meeting_id (str): The ID of the meeting to retrieve
+        
+    Returns:
+        dict: Meeting details or None if not found
+    """
+    try:
+        # Connect to database
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Since we don't have a meetings table, we'll get meeting info from engagement data
+        cursor.execute(
+            "SELECT meeting_id, MIN(join_time) as start_time FROM engagement_data WHERE meeting_id = ? GROUP BY meeting_id",
+            (meeting_id,)
+        )
+        meeting_data = cursor.fetchone()
+        
+        # Query for participant count
+        cursor.execute(
+            "SELECT COUNT(DISTINCT participant_id) FROM engagement_data WHERE meeting_id = ?",
+            (meeting_id,)
+        )
+        participant_count_row = cursor.fetchone()
+        participant_count = participant_count_row[0] if participant_count_row else 0
+        
+        if meeting_data:
+            # Convert database row to dictionary
+            meeting = {
+                "id": meeting_data['meeting_id'],
+                "topic": f"Meeting {meeting_id}",
+                "status": "active" if meeting_data['start_time'] else "unknown",
+                "start_time": meeting_data['start_time'],
+                "duration": 0,  # We don't track this yet
+                "participant_count": participant_count
+            }
+            return meeting
+        else:
+            # If meeting doesn't exist in the database yet, create a placeholder
+            meeting = {
+                "id": meeting_id,
+                "topic": f"Meeting {meeting_id}",
+                "status": "unknown",
+                "start_time": None,
+                "duration": 0,
+                "participant_count": 0
+            }
+            return meeting
+            
+    except Exception as e:
+        logger.error(f"Database error in get_meeting_details: {str(e)}")
+        return None
+    finally:
+        conn.close()
+
+def get_transcriptions_db(meeting_id):
+    """
+    Retrieve transcriptions for a meeting from the database
+    
+    Args:
+        meeting_id (str): The ID of the meeting
+        
+    Returns:
+        list: List of transcription objects or empty list if none found
+    """
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+        SELECT id, meeting_id, participant_id, participant_name, 
+               transcript, timestamp, sentiment_score, browser_id
+        FROM transcriptions 
+        WHERE meeting_id = ? 
+        ORDER BY timestamp ASC
+        ''', (meeting_id,))
+        
+        rows = cursor.fetchall()
+        
+        # Convert rows to dictionaries
+        transcriptions = []
+        for row in rows:
+            transcription = dict(row)
+            transcriptions.append(transcription)
+            
+        return transcriptions
+        
+    except Exception as e:
+        logger.error(f"Database error in get_transcriptions_db: {str(e)}")
+        return []
+    finally:
+        conn.close()
+
+def save_transcription_db(meeting_id, participant_id, participant_name, transcript, sentiment_score, timestamp, browser_id):
     """Save transcription data to the database"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         
         cursor.execute('''
-        INSERT INTO transcriptions (meeting_id, participant_id, participant_name, transcript, timestamp, sentiment_score)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ''', (meeting_id, participant_id, participant_name, transcript, timestamp, sentiment_score))
+        INSERT INTO transcriptions (meeting_id, participant_id, participant_name, transcript, timestamp, sentiment_score, browser_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (meeting_id, participant_id, participant_name, transcript, timestamp, sentiment_score, browser_id))
+        
+        # Get the inserted ID
+        transcription_id = cursor.lastrowid
         
         conn.commit()
         logger.info(f"Transcription saved for meeting {meeting_id}, participant {participant_name}")
+        return transcription_id
     except Exception as e:
         logger.error(f"Error saving transcription: {str(e)}")
+        return None
     finally:
         conn.close()
 
-def save_engagement_data(meeting_id, participant_data):
+def save_engagement_data_db(meeting_id, participant_data):
     """Save engagement data to the database"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
@@ -120,7 +231,7 @@ def save_engagement_data(meeting_id, participant_data):
     finally:
         conn.close()
 
-def update_participant_leave_time(meeting_id, participant_id):
+def update_participant_leave_time_db(meeting_id, participant_id):
     """Update the leave time for a participant"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
@@ -158,7 +269,7 @@ def update_participant_leave_time(meeting_id, participant_id):
     finally:
         conn.close()
 
-def update_participant_talk_time(meeting_id, participant_id, talk_time):
+def update_participant_talk_time_db(meeting_id, participant_id, talk_time):
     """Update the talk time for a participant"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
@@ -178,7 +289,44 @@ def update_participant_talk_time(meeting_id, participant_id, talk_time):
     finally:
         conn.close()
 
-def get_meeting_participants(meeting_id):
+def update_participant_status_db(meeting_id, participant_id, is_active, browser_id):
+    """
+    Update the active status of a participant in the database
+    """
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        # Check if participant exists in engagement_data
+        cursor.execute(
+            "SELECT participant_id FROM engagement_data WHERE meeting_id = ? AND participant_id = ?",
+            (meeting_id, participant_id)
+        )
+        existing = cursor.fetchone()
+        
+        if existing:
+            # We don't have an is_active field in the database.py schema,
+            # so we'll update other fields as a way to track activity
+            cursor.execute(
+                "UPDATE engagement_data SET leave_time = ? WHERE meeting_id = ? AND participant_id = ?",
+                (None if is_active else datetime.now().isoformat(), meeting_id, participant_id)
+            )
+        else:
+            # Insert new participant with an active status
+            cursor.execute(
+                "INSERT INTO engagement_data (meeting_id, participant_id, participant_name, join_time) VALUES (?, ?, ?, ?)",
+                (meeting_id, participant_id, f"Participant {participant_id}", datetime.now().isoformat())
+            )
+            
+        conn.commit()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        logger.error(f"Database error in update_participant_status: {str(e)}")
+        return False
+
+def get_meeting_participants_db(meeting_id):
     """Get all participants for a specific meeting"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
@@ -211,7 +359,7 @@ def get_meeting_participants(meeting_id):
     finally:
         conn.close()
 
-def get_meeting_transcriptions(meeting_id, limit=50):
+def get_meeting_transcriptions_db(meeting_id, limit=50):
     """Get transcriptions for a specific meeting"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
@@ -245,7 +393,7 @@ def get_meeting_transcriptions(meeting_id, limit=50):
     finally:
         conn.close()
 
-def save_meeting_transcript(meeting_id, transcript_data):
+def save_meeting_transcript_db(meeting_id, transcript_data):
     """Save a consolidated meeting transcript when meeting ends"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
