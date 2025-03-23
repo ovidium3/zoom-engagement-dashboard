@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Transcript Detail</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .transcript-entry {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .participant-name {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 0.8em;
+        }
+        .transcript-text {
+            margin-top: 5px;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        #searchTranscript {
+            padding: 8px;
+            width: 300px;
+        }
+        .meeting-info {
+            margin-bottom: 20px;
+        }
+        .meeting-info span {
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Meeting Transcript</h1>
+    <div class="meeting-info">
+        <span id="meetingTopic"></span>
+        <span id="meetingId"></span>
+        <span id="meetingDate"></span>
+    </div>
+    
+    <div class="controls">
+        <div>
+            <button id="backButton" class="btn btn-primary">← Back to List</button>
+            <button id="deleteTranscript" class="btn btn-danger">Delete Transcript</button>
+        </div>
+        <div>
+            <input type="text" id="searchTranscript" placeholder="Search transcript...">
+        </div>
+    </div>
+
+    <div id="transcriptContainer">
+        <p>Loading transcript...</p>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get meeting ID from URL or from template variable
+            let meetingId = '{{ meeting_id }}';
+            
+            // If not available from template, get from URL (this hits)
+            if (!meetingId) {
+                const pathSegments = window.location.pathname.split('/');
+                meetingId = pathSegments[pathSegments.length - 1];
+            }
+            
+            if (!meetingId) {
+                alert('Meeting ID is missing');
+                return;
+            }
+            
+            document.getElementById('meetingId').textContent = `Meeting ID: ${meetingId}`;
+            
+            // Fetch and display transcript
+            fetchMeetingTranscript(meetingId);
+            
+            // Set up back button
+            document.getElementById('backButton').addEventListener('click', function() {
+                window.location.href = '/transcript-list';
+            });
+            
+            // Set up delete transcript button
+            document.getElementById('deleteTranscript').addEventListener('click', function() {
+                if (confirm('Are you sure you want to delete this transcript? This action cannot be undone.')) {
+                    deleteTranscript(meetingId);
+                }
+            });
+            
+            // Set up search functionality
+            document.getElementById('searchTranscript').addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const transcriptEntries = document.querySelectorAll('.transcript-entry');
+                
+                transcriptEntries.forEach(entry => {
+                    const text = entry.querySelector('.transcript-text').textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        entry.style.display = '';
+                    } else {
+                        entry.style.display = 'none';
+                    }
+                });
+            });
+        });
+        
+        function fetchMeetingTranscript(meetingId) {
+            fetch(`/api/transcripts/${meetingId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayTranscript(data.data);
+                    } else {
+                        document.getElementById('transcriptContainer').innerHTML = 
+                            `<p>No transcript found for this meeting.</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching transcript:', error);
+                    document.getElementById('transcriptContainer').innerHTML = 
+                        `<p>Error loading transcript: ${error.message}</p>`;
+                });
+        }
+        
+        function displayTranscript(data) {
+            console.log("inside displayTranscript");
+            console.log(data);
+            const container = document.getElementById('transcriptContainer');
+            container.innerHTML = '';
+            
+            // Set meeting date
+            const createdAt = new Date(data.created_at);
+            document.getElementById('meetingDate').textContent = 
+                `Date: ${createdAt.toLocaleDateString()} ${createdAt.toLocaleTimeString()}`;
+            
+            // Set meeting topic
+            const meetingTopic = data.meeting_topic || "Untitled Meeting";
+            document.getElementById('meetingTopic').textContent = `Topic: ${meetingTopic}`;
+            
+            // Get transcript data
+            const transcriptData = data.transcript_data;
+            
+            // Display each transcript entry
+            transcriptData.forEach(entry => {
+                const transcriptEntry = document.createElement('div');
+                transcriptEntry.className = 'transcript-entry';
+                
+                // Format timestamp
+                const timestamp = new Date(entry.timestamp);
+                const formattedTime = timestamp.toLocaleTimeString();
+                
+                transcriptEntry.innerHTML = `
+                    <span class="participant-name">${entry.participant_name}</span>
+                    <span class="timestamp">${formattedTime}</span>
+                    <div class="transcript-text">${entry.transcript}</div>
+                `;
+                
+                container.appendChild(transcriptEntry);
+            });
+        }
+        
+        function deleteTranscript(meetingId) {
+            fetch(`/api/transcripts/${meetingId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/transcript-list';
+                } else {
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting transcript:', error);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -3,11 +3,11 @@ import json
 import logging
 from datetime import datetime
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 DATABASE_PATH = 'zoom_engagement.db'
+
+########################################################################################################################
+# Database Initialization
+########################################################################################################################
 
 def init_db():
     """Initialize the database with required tables"""
@@ -24,7 +24,7 @@ def init_db():
             participant_name TEXT NOT NULL,
             transcript TEXT NOT NULL,
             timestamp TEXT NOT NULL,
-            sentiment_score INTEGER DEFAULT 0,
+            sentiment_score REAL DEFAULT 0,
             browser_id TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -46,35 +46,40 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''')
-
+        
+        # Create final transcripts table
         cursor.execute('''
-            ALTER TABLE transcriptions ADD COLUMN browser_id TEXT;
+        CREATE TABLE IF NOT EXISTS final_meeting_transcripts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            meeting_id TEXT NOT NULL UNIQUE,
+            meeting_date TEXT NOT NULL,
+            transcript_data TEXT NOT NULL,
+            participant_data TEXT NOT NULL,
+            full_text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
         ''')
         
         conn.commit()
-        logger.info("Database initialized successfully")
+        print("Database initialized successfully")
     except Exception as e:
-        logger.error(f"Error initializing database: {str(e)}")
+        print(f"Error initializing database: {str(e)}")
     finally:
         conn.close()
 
+########################################################################################################################
+# Database Meeting Operations
+########################################################################################################################
+
 def get_meeting_info_db(meeting_id):
-    """
-    Retrieve meeting details from the database
-    
-    Args:
-        meeting_id (str): The ID of the meeting to retrieve
-        
-    Returns:
-        dict: Meeting details or None if not found
-    """
+    """Retrieve meeting details from the database"""
     try:
         # Connect to database
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Since we don't have a meetings table, we'll get meeting info from engagement data
+        # Check if meeting exists in engagement data
         cursor.execute(
             "SELECT meeting_id, MIN(join_time) as start_time FROM engagement_data WHERE meeting_id = ? GROUP BY meeting_id",
             (meeting_id,)
@@ -89,59 +94,60 @@ def get_meeting_info_db(meeting_id):
         participant_count_row = cursor.fetchone()
         participant_count = participant_count_row[0] if participant_count_row else 0
         
+        # Check if meeting has ended (has final transcript)
+        cursor.execute(
+            "SELECT 1 FROM final_meeting_transcripts WHERE meeting_id = ? LIMIT 1",
+            (meeting_id,)
+        )
+        is_ended = cursor.fetchone() is not None
+        
         if meeting_data:
-            # Convert database row to dictionary
             meeting = {
                 "id": meeting_data['meeting_id'],
                 "topic": f"Meeting {meeting_id}",
-                "status": "active" if meeting_data['start_time'] else "unknown",
+                "status": "ended" if is_ended else "active",
                 "start_time": meeting_data['start_time'],
                 "duration": 0,  # We don't track this yet
                 "participant_count": participant_count
             }
-            return meeting
         else:
-            # If meeting doesn't exist in the database yet, create a placeholder
+            # Meeting doesn't exist in the database yet
             meeting = {
                 "id": meeting_id,
                 "topic": f"Meeting {meeting_id}",
-                "status": "unknown",
+                "status": "offline",  # Changed from "unknown" to "offline"
                 "start_time": None,
                 "duration": 0,
                 "participant_count": 0
             }
-            return meeting
+
+        return meeting
             
     except Exception as e:
-        logger.error(f"Database error in get_meeting_details: {str(e)}")
+        print(f"Database error in get_meeting_info_db: {str(e)}")
         return None
     finally:
         conn.close()
 
 def get_transcriptions_db(meeting_id):
-    """
-    Retrieve transcriptions for a meeting from the database
-    
-    Args:
-        meeting_id (str): The ID of the meeting
-        
-    Returns:
-        list: List of transcription objects or empty list if none found
-    """
+    """Retrieve transcriptions for a meeting from the database"""
+    print("inside get   transcriptions_db")
+    print("meeting id:", meeting_id)
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         cursor.execute('''
-        SELECT id, meeting_id, participant_id, participant_name, 
-               transcript, timestamp, sentiment_score, browser_id
-        FROM transcriptions 
+        SELECT *
+        FROM transcriptions
         WHERE meeting_id = ? 
         ORDER BY timestamp ASC
         ''', (meeting_id,))
         
         rows = cursor.fetchall()
+
+        print("num rows:", rows)
         
         # Convert rows to dictionaries
         transcriptions = []
@@ -152,13 +158,15 @@ def get_transcriptions_db(meeting_id):
         return transcriptions
         
     except Exception as e:
-        logger.error(f"Database error in get_transcriptions_db: {str(e)}")
+        print(f"Database error in get_transcriptions_db: {str(e)}")
         return []
     finally:
         conn.close()
 
 def save_transcription_db(meeting_id, participant_id, participant_name, transcript, sentiment_score, timestamp, browser_id):
     """Save transcription data to the database"""
+    print("meeting_id: ", meeting_id)
+    meeting_id = meeting_id.replace(" ", "")    # remove spaces since fetching already has a cleaned meeting id
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -172,16 +180,18 @@ def save_transcription_db(meeting_id, participant_id, participant_name, transcri
         transcription_id = cursor.lastrowid
         
         conn.commit()
-        logger.info(f"Transcription saved for meeting {meeting_id}, participant {participant_name}")
+        print(f"Transcription saved for meeting {meeting_id}, participant {participant_name}: {transcript}")
         return transcription_id
     except Exception as e:
-        logger.error(f"Error saving transcription: {str(e)}")
+        print(f"Error saving transcription: {str(e)}")
         return None
     finally:
         conn.close()
 
 def save_engagement_data_db(meeting_id, participant_data):
     """Save engagement data to the database"""
+    print("meeting_id: ", meeting_id)
+    meeting_id = meeting_id.replace(" ", "")    # remove spaces!!
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -225,9 +235,11 @@ def save_engagement_data_db(meeting_id, participant_data):
             ))
         
         conn.commit()
-        logger.info(f"Engagement data saved for meeting {meeting_id}, participant {participant_data.get('name')}")
+        print(f"Engagement data saved for meeting {meeting_id}, participant {participant_data.get('name')}")
+        return True
     except Exception as e:
-        logger.error(f"Error saving engagement data: {str(e)}")
+        print(f"Error saving engagement data: {str(e)}")
+        return False
     finally:
         conn.close()
 
@@ -261,11 +273,14 @@ def update_participant_leave_time_db(meeting_id, participant_id):
             ''', (leave_time, duration, meeting_id, participant_id))
             
             conn.commit()
-            logger.info(f"Updated leave time for participant {participant_id} in meeting {meeting_id}")
+            print(f"Updated leave time for participant {participant_id} in meeting {meeting_id}")
+            return True
         else:
             logger.warning(f"Participant {participant_id} not found in meeting {meeting_id}")
+            return False
     except Exception as e:
-        logger.error(f"Error updating participant leave time: {str(e)}")
+        print(f"Error updating participant leave time: {str(e)}")
+        return False
     finally:
         conn.close()
 
@@ -283,16 +298,16 @@ def update_participant_talk_time_db(meeting_id, participant_id, talk_time):
         ''', (talk_time, meeting_id, participant_id))
         
         conn.commit()
-        logger.info(f"Updated talk time for participant {participant_id} in meeting {meeting_id}: {talk_time}s")
+        print(f"Updated talk time for participant {participant_id} in meeting {meeting_id}: {talk_time}s")
+        return True
     except Exception as e:
-        logger.error(f"Error updating participant talk time: {str(e)}")
+        print(f"Error updating participant talk time: {str(e)}")
+        return False
     finally:
         conn.close()
 
 def update_participant_status_db(meeting_id, participant_id, is_active, browser_id):
-    """
-    Update the active status of a participant in the database
-    """
+    """Update the active status of a participant in the database"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -305,7 +320,7 @@ def update_participant_status_db(meeting_id, participant_id, is_active, browser_
         existing = cursor.fetchone()
         
         if existing:
-            # We don't have an is_active field in the database.py schema,
+            # We don't have an is_active field in the database schema,
             # so we'll update other fields as a way to track activity
             cursor.execute(
                 "UPDATE engagement_data SET leave_time = ? WHERE meeting_id = ? AND participant_id = ?",
@@ -319,12 +334,13 @@ def update_participant_status_db(meeting_id, participant_id, is_active, browser_
             )
             
         conn.commit()
-        conn.close()
         return True
         
     except Exception as e:
-        logger.error(f"Database error in update_participant_status: {str(e)}")
+        print(f"Database error in update_participant_status_db: {str(e)}")
         return False
+    finally:
+        conn.close()
 
 def get_meeting_participants_db(meeting_id):
     """Get all participants for a specific meeting"""
@@ -354,80 +370,142 @@ def get_meeting_participants_db(meeting_id):
         
         return participants
     except Exception as e:
-        logger.error(f"Error fetching meeting participants: {str(e)}")
+        print(f"Error fetching meeting participants: {str(e)}")
         return []
     finally:
         conn.close()
 
-def get_meeting_transcriptions_db(meeting_id, limit=50):
-    """Get transcriptions for a specific meeting"""
+########################################################################################################################
+# Database Meeting End Operations
+########################################################################################################################
+
+def get_final_transcript_db(meeting_id):
+    """
+    Retrieve the final transcript for a meeting
+    Returns the transcript data or None if not found
+    """
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         cursor.execute('''
-        SELECT * FROM transcriptions
+        SELECT * FROM final_meeting_transcripts
         WHERE meeting_id = ?
-        ORDER BY timestamp DESC
-        LIMIT ?
-        ''', (meeting_id, limit))
-        
-        rows = cursor.fetchall()
-        transcriptions = []
-        
-        for row in rows:
-            transcriptions.append({
-                'id': row['id'],
-                'participant_id': row['participant_id'],
-                'participant_name': row['participant_name'],
-                'transcript': row['transcript'],
-                'timestamp': row['timestamp'],
-                'sentiment_score': row['sentiment_score']
-            })
-        
-        return transcriptions
+        ''', (meeting_id,))
+
+        result = cursor.fetchone()
+
+        if result:
+            # Parse the JSON data
+            transcript_data_json = result['transcript_data']
+            participant_data_json = result['participant_data']
+
+            transcript_data = json.loads(transcript_data_json)
+            participant_data = json.loads(participant_data_json)
+
+
+            # Try to get meeting_topic from transcript data.  Adjust this if your structure is different.
+            meeting_topic = transcript_data[0].get('meeting_topic', 'Untitled Meeting') if transcript_data else 'Untitled Meeting'
+
+            final_transcript = {
+                'meeting_id': result['meeting_id'],
+                'meeting_date': result['meeting_date'],
+                'created_at': result['created_at'],
+                'transcript_data': transcript_data,
+                'participant_data': participant_data,
+                'meeting_topic': meeting_topic  # Add meeting topic
+            }
+            return final_transcript
+        else:
+            return None
+
     except Exception as e:
-        logger.error(f"Error fetching meeting transcriptions: {str(e)}")
-        return []
+        print(f"Error retrieving final transcript: {str(e)}")
+        return None
     finally:
         conn.close()
 
-def save_meeting_transcript_db(meeting_id, transcript_data):
-    """Save a consolidated meeting transcript when meeting ends"""
+def save_and_archive_meeting_data_db(meeting_id):
+    """
+    Archive meeting data to permanent storage
+    This is called when a meeting ends
+    """
     try:
         conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row # Enable column access by name
         cursor = conn.cursor()
-        
-        # Add a new table if it doesn't exist
+
+        # Get meeting transcriptions
         cursor.execute('''
-        CREATE TABLE IF NOT EXISTS meeting_transcripts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            meeting_id TEXT NOT NULL UNIQUE,
-            full_transcript TEXT NOT NULL,
-            transcript_data TEXT NOT NULL,  # JSON string containing all transcript segments
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Consolidate all transcript text
-        full_transcript = '\n\n'.join(f"{item.get('participant_name')} ({item.get('timestamp')}): {item.get('transcript')}" 
-                                     for item in transcript_data)
-        
-        # Convert transcript data to JSON string
-        transcript_json = json.dumps(transcript_data)
-        
-        # Save consolidated transcript
+        SELECT * FROM transcriptions
+        WHERE meeting_id = ?
+        ORDER BY timestamp ASC
+        ''', (meeting_id,))
+        transcriptions = cursor.fetchall()
+
+        # Get meeting engagement data
         cursor.execute('''
-        INSERT INTO meeting_transcripts (meeting_id, full_transcript, transcript_data)
-        VALUES (?, ?, ?)
-        ON CONFLICT(meeting_id) DO UPDATE SET
-        full_transcript = ?, transcript_data = ?, created_at = CURRENT_TIMESTAMP
-        ''', (meeting_id, full_transcript, transcript_json, full_transcript, transcript_json))
-        
+        SELECT * FROM engagement_data
+        WHERE meeting_id = ?
+        ''', (meeting_id,))
+        engagement = cursor.fetchall()
+
+        # Prepare transcript data for archive
+        transcript_data = []
+        for t in transcriptions:
+            transcript_data.append({
+                'participant_id': t['participant_id'],
+                'participant_name': t['participant_name'],
+                'transcript': t['transcript'],
+                'sentiment_score': t['sentiment_score'],
+                'timestamp': t['timestamp']
+            })
+
+        # Prepare participant data for archive
+        participant_data = []
+        for e in engagement:
+            participant_data.append({
+                'id': e['participant_id'],
+                'name': e['participant_name'],
+                'join_time': e['join_time'],
+                'leave_time': e['leave_time'],
+                'duration': e['duration'],
+                'talk_time': e['talk_time']
+            })
+
+        # Get meeting info
+        meeting_info = get_meeting_info_db(meeting_id)
+
+        # Create archive data structure
+        archive_data = {
+            'meeting_id': meeting_id,
+            'meeting_topic': meeting_info['topic'] if meeting_info else 'Untitled Meeting',
+            'start_time': meeting_info['start_time'] if meeting_info else None,
+            'end_time': datetime.now().isoformat(),
+            'participant_count': len(participant_data),
+            'participant_data': participant_data,
+            'transcript_data': transcript_data
+        }
+          # Prepare full text for search purposes
+        full_text = ' '.join([t['transcript'] for t in transcript_data])
+        # Save to permanent storage
+        cursor.execute('''
+        INSERT OR REPLACE INTO final_meeting_transcripts
+        (meeting_id, meeting_date, transcript_data, participant_data, full_text)
+        VALUES (?, ?, ?, ?, ?)
+        ''', (
+            meeting_id,
+            archive_data['start_time'],
+            json.dumps(archive_data['transcript_data']),
+            json.dumps(archive_data['participant_data']),
+            full_text
+        ))
         conn.commit()
-        logger.info(f"Saved consolidated transcript for meeting {meeting_id}")
+        print(f"Meeting data archived for meeting {meeting_id}")
+        return True
     except Exception as e:
-        logger.error(f"Error saving meeting transcript: {str(e)}")
+        print(f"Error archiving meeting data: {str(e)}")
+        return False
     finally:
         conn.close()

@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
-from database import init_db, get_meeting_info_db, save_transcription_db, save_engagement_data_db, get_meeting_participants_db, get_meeting_transcriptions_db, update_participant_leave_time_db, update_participant_status_db, update_participant_talk_time_db, get_transcriptions_db
+from database import *
 
 # Load environment variables
 load_dotenv()
@@ -23,12 +23,6 @@ socketio = SocketIO(app, async_mode='gevent')
 # Initialize database
 init_db()
 
-def get_db_connection():
-    """Get a connection to the SQLite database"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 ########################################################################################################################
 # HTML Routes
 ########################################################################################################################
@@ -38,10 +32,15 @@ def index():
     """Render the main dashboard page"""
     return render_template('index.html')
 
-@app.route('/meeting-transcript/<meeting_id>')
-def meeting_transcript_page(meeting_id):
-    """Render the meeting transcript page on meeting end"""
-    return render_template('meeting_transcript.html', meeting_id=meeting_id)
+@app.route('/transcript-list/')
+def transcript_list():
+    """Render the transcript list page"""
+    return render_template('transcript_list.html')
+
+@app.route('/transcript-list/<meeting_id>')
+def transcript_detail(meeting_id):
+    """Render the transcript detail page"""
+    return render_template('transcript_detail.html', meeting_id=meeting_id)
 
 ########################################################################################################################
 # Webhook Routes
@@ -49,13 +48,10 @@ def meeting_transcript_page(meeting_id):
 
 def handle_participant_joined(data):
     """Handle participant joined events from Zoom webhooks"""
-    logger.info("WEBHOOK RECEIVED - PARTICIPANT JOINED")
-    logger.info(f"Headers: {request.headers}")
-    logger.info(f"Body: {request.get_data()}")
-    
+    print("WEBHOOK RECEIVED - PARTICIPANT JOINED")
     try:
         data = request.json
-        logger.info(f"Received participant joined webhook: {data}")
+        print(f"Received participant joined webhook: {data}")
         
         # Verify the webhook event type
         if data.get('event') == 'meeting.participant_joined':
@@ -73,7 +69,7 @@ def handle_participant_joined(data):
             }
             
             # Save participant data to database
-            save_engagement_data(meeting_id, participant_info)
+            save_engagement_data_db(meeting_id, participant_info)
             
             # Emit to connected clients
             socketio.emit('participant_joined', {
@@ -83,20 +79,17 @@ def handle_participant_joined(data):
             
             return jsonify({"status": "success"}), 200
     except Exception as e:
-        logger.error(f"Error processing participant joined webhook: {str(e)}")
+        print(f"Error processing participant joined webhook: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
     
     return jsonify({"status": "ignored"}), 200
 
 def handle_participant_left(data):
     """Handle participant left events from Zoom webhooks"""
-    logger.info("WEBHOOK RECEIVED - PARTICIPANT LEFT")
-    logger.info(f"Headers: {request.headers}")
-    logger.info(f"Body: {request.get_data()}")
-    
+    print("WEBHOOK RECEIVED - PARTICIPANT LEFT")    
     try:
         data = request.json
-        logger.info(f"Received participant left webhook: {data}")
+        print(f"Received participant left webhook: {data}")
         
         # Verify the webhook event type
         if data.get('event') == 'meeting.participant_left':
@@ -105,7 +98,7 @@ def handle_participant_left(data):
             participant_id = participant.get('id')
             
             # Update the participant leave time
-            update_participant_leave_time(meeting_id, participant_id)
+            update_participant_leave_time_db(meeting_id, participant_id)
             
             # Emit to connected clients
             socketio.emit('participant_left', {
@@ -115,20 +108,17 @@ def handle_participant_left(data):
             
             return jsonify({"status": "success"}), 200
     except Exception as e:
-        logger.error(f"Error processing participant left webhook: {str(e)}")
+        print(f"Error processing participant left webhook: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
     
     return jsonify({"status": "ignored"}), 200
 
 def handle_meeting_started(data):
     """Handle meeting started events from Zoom webhooks"""
-    logger.info("WEBHOOK RECEIVED - MEETING STARTED")
-    logger.info(f"Headers: {request.headers}")
-    logger.info(f"Body: {request.get_data()}")
-    
+    print("WEBHOOK RECEIVED - MEETING STARTED")
     try:
         data = request.json
-        logger.info(f"Received meeting started webhook: {data}")
+        print(f"Received meeting started webhook: {data}")
         
         # Verify the webhook event type
         if data.get('event') == 'meeting.started':
@@ -143,33 +133,33 @@ def handle_meeting_started(data):
             
             return jsonify({"status": "success"}), 200
     except Exception as e:
-        logger.error(f"Error processing meeting started webhook: {str(e)}")
+        print(f"Error processing meeting started webhook: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
     
     return jsonify({"status": "ignored"}), 200
 
 def handle_meeting_ended(data):
-    """Handle meeting ended events from Zoom webhooks"""
-    logger.info("WEBHOOK RECEIVED - MEETING ENDED")
-    logger.info(f"Headers: {request.headers}")
-    logger.info(f"Body: {request.get_data()}")
-    
+    """Handle meeting ended events from Zoom webhooks"""   
+    print("WEBHOOK RECEIVED - MEETING ENDED") 
     try:
         data = request.json
-        logger.info(f"Received meeting ended webhook: {data}")
+        print(f"Received meeting ended webhook: {data}")
         
         # Verify the webhook event type
         if data.get('event') == 'meeting.ended':
             meeting_id = data.get('payload', {}).get('object', {}).get('id')
+
+            # Archive transcripts to final storage and clear interim data
+            save_and_archive_meeting_data_db(meeting_id)
             
             # Emit to connected clients
             socketio.emit('meeting_ended', {
-                'meeting_id': meeting_id
+                'meeting_id': meeting_id,
             })
             
             return jsonify({"status": "success"}), 200
     except Exception as e:
-        logger.error(f"Error processing meeting ended webhook: {str(e)}")
+        print(f"Error processing meeting ended webhook: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
     
     return jsonify({"status": "ignored"}), 200
@@ -179,8 +169,7 @@ def zoom_webhook():
     """Handles Zoom webhook events and routes them accordingly."""
     data = request.json
     event_type = data.get("event")
-    
-    print(f"Received event: {event_type}")  # Debugging output
+    print(f"Received event: {event_type}")
     
     try:
         if event_type == "meeting.started":
@@ -201,89 +190,58 @@ def zoom_webhook():
     return jsonify({"status": "ignored"}), 200
 
 ########################################################################################################################
-# API Routes
+# Dashboard API Routes
 ########################################################################################################################
 
-@app.route('/api/meeting/<meeting_id>', methods=['GET'])
-def get_meeting_info(meeting_id):
-    """Fetch information about a specific meeting"""
+@app.route('/api/meetings/<meeting_id>', methods=['GET'])
+def get_meeting_data(meeting_id):
+    """Fetch meeting data with optional type parameter"""
     try:
-        # Clean meeting_id by removing spaces
+        data_type = request.args.get('type', 'info')  # Default to 'info'
         meeting_id = meeting_id.replace(" ", "")
         
-        # Get meeting details from the database
-        meeting = get_meeting_info_db(meeting_id)
-        
-        if meeting:
-            logger.info(f"Fetched meeting info for meeting {meeting_id}")
-            return jsonify({
-                "success": True,
-                "data": meeting
-            }), 200
+        if data_type == 'info':
+            # Get basic meeting information
+            data = get_meeting_info_db(meeting_id)
+            print(f"Fetching meeting info for meeting {meeting_id}: {data}")
+        elif data_type == 'transcriptions':
+            # Get live transcriptions
+            data = get_transcriptions_db(meeting_id)
+            print(f"Fetching transcriptions for meeting {meeting_id}: {data}")
+        elif data_type == 'participants':
+            # Get participants
+            data = get_meeting_participants_db(meeting_id)
+            print(f"Fetching participants for meeting {meeting_id}: {data}")
+        elif data_type == 'transcript':
+            # Try to get final transcript first
+            data = get_final_transcript_db(meeting_id)
+            print(f"Fetching final transcript for meeting {meeting_id}: {data}")
+            # If no final transcript exists, get interim transcriptions
+            if not data:
+                data = get_transcriptions_db(meeting_id)
+                return jsonify({
+                    "success": True,
+                    "is_final": False,
+                    "data": data
+                }), 200
+            else:
+                return jsonify({
+                    "success": True, 
+                    "is_final": True,
+                    "data": data
+                }), 200
+                
+        if data:
+            return jsonify({"success": True, "data": data}), 200
         else:
-            logger.warning(f"Meeting {meeting_id} not found")
             return jsonify({
                 "success": False,
-                "message": f"Meeting {meeting_id} not found"
+                "message": f"No {data_type} found for meeting {meeting_id}"
             }), 404
             
     except Exception as e:
-        logger.error(f"Error fetching meeting info: {str(e)}")
-        return jsonify({
-            "success": False, 
-            "message": str(e)
-        }), 500
-
-@app.route('/api/transcriptions/<meeting_id>', methods=['GET'])
-def get_transcriptions(meeting_id):
-    """Fetch transcriptions for a specific meeting"""
-    try:
-        # Clean meeting_id by removing spaces
-        meeting_id = meeting_id.replace(" ", "")
-        
-        # Get transcriptions from the database
-        transcriptions = get_transcriptions_db(meeting_id)
-        
-        if transcriptions:
-            logger.info(f"Fetched {len(transcriptions)} transcriptions for meeting {meeting_id}")
-            return jsonify({
-                "success": True,
-                "data": transcriptions
-            }), 200
-        else:
-            logger.warning(f"No transcriptions found for meeting {meeting_id}")
-            return jsonify({
-                "success": False,
-                "message": f"No transcriptions found for meeting {meeting_id}"
-            }), 404
-            
-    except Exception as e:
-        logger.error(f"Error fetching transcriptions: {str(e)}")
-        return jsonify({
-            "success": False, 
-            "message": str(e)
-        }), 500
-
-@app.route('/api/participants/<meeting_id>', methods=['GET'])
-def get_participants(meeting_id):
-    """Fetch participants for a specific meeting"""
-    try:
-        # Clean meeting_id by removing spaces
-        meeting_id = meeting_id.replace(" ", "")
-        
-        # Get meeting participants from database
-        participants = get_meeting_participants_db(meeting_id)
-        logger.info(f"Fetched {len(participants)} participants for meeting {meeting_id}")
-        return jsonify({
-            "success": True,
-            "data": participants
-        }), 200
-    except Exception as e:
-        logger.error(f"Error fetching participants: {str(e)}")
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
+        print(f"Error fetching meeting data: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/participant/active', methods=['POST'])
 def update_participant_active_status():
@@ -323,7 +281,7 @@ def update_participant_active_status():
             }), 500
             
     except Exception as e:
-        logger.error(f"Error updating participant status: {str(e)}")
+        print(f"Error updating participant status: {str(e)}")
         return jsonify({
             "success": False,
             "message": str(e)
@@ -332,6 +290,7 @@ def update_participant_active_status():
 @app.route('/api/transcription', methods=['POST'])
 def add_transcription():
     """Add a new transcription entry"""
+    print("adding transcription: ", request.json)
     try:
         data = request.json
         meeting_id = data.get('meeting_id')
@@ -387,7 +346,7 @@ def add_transcription():
             }), 500
             
     except Exception as e:
-        logger.error(f"Error adding transcription: {str(e)}")
+        print(f"Error adding transcription: {str(e)}")
         return jsonify({
             "success": False,
             "message": str(e)
@@ -401,7 +360,6 @@ def update_talk_time():
         meeting_id = data.get('meeting_id')
         participant_id = data.get('participant_id')
         talk_time = data.get('talk_time', 0)
-        browser_id = data.get('browser_id')
         
         if not meeting_id or not participant_id:
             return jsonify({
@@ -410,7 +368,7 @@ def update_talk_time():
             }), 400
             
         # Update talk time in the database
-        result = update_participant_talk_time_db(meeting_id, participant_id, talk_time, browser_id)
+        result = update_participant_talk_time_db(meeting_id, participant_id, talk_time)
         
         if result:
             # Emit socket event to notify clients
@@ -431,23 +389,145 @@ def update_talk_time():
             }), 500
             
     except Exception as e:
-        logger.error(f"Error updating talk time: {str(e)}")
+        print(f"Error updating talk time: {str(e)}")
         return jsonify({
             "success": False,
             "message": str(e)
         }), 500
 
-# Helper functions for database operations
+########################################################################################################################
+# Transcript API Routes
+########################################################################################################################
+
+@app.route('/api/transcripts', methods=['GET'])
+def get_all_transcripts():
+    """Retrieve a list of all available transcripts"""
+    print("getting all transcripts")
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Query to get all final transcripts with basic info
+        cursor.execute('''
+        SELECT
+            meeting_id,
+            meeting_date,
+            created_at,
+            transcript_data,
+            participant_data
+        FROM final_meeting_transcripts
+        ORDER BY created_at DESC
+        ''')
+
+        rows = cursor.fetchall()
+
+        # Convert to list of dictionaries
+        transcripts = []
+        for row in rows:
+            # Load JSON data
+            transcript_data = json.loads(row['transcript_data'])
+            participant_data = json.loads(row['participant_data'])
+
+            # Extract meeting topic from transcript data (if available)
+            meeting_topic = transcript_data[0].get('meeting_topic', "Untitled Meeting") if transcript_data else "Untitled Meeting"  # Adjust based on actual structure
+
+            # Get participant count from participant data
+            participant_count = len(participant_data) if participant_data else 0
+
+            transcripts.append({
+                'meeting_id': row['meeting_id'],
+                'meeting_date': row['meeting_date'],
+                'created_at': row['created_at'],
+                'meeting_topic': meeting_topic,
+                'participant_count': participant_count
+            })
+
+        return jsonify({
+            "success": True,
+            "data": transcripts
+        }), 200
+
+    except Exception as e:
+        print(f"Error retrieving transcript list: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+    finally:
+        conn.close()
+
+@app.route('/api/transcripts/<meeting_id>', methods=['GET'])
+def get_final_transcript(meeting_id):
+    """Retrieve archived transcript for a meeting"""
+    print("final transcript meeting id: ", meeting_id)
+    try:
+        result = get_final_transcript_db(meeting_id)
+        
+        if result:
+            return jsonify({
+                "success": True,
+                "data": result
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"No final transcript found for meeting {meeting_id}"
+            }), 404
+            
+    except Exception as e:
+        print(f"Error retrieving final transcript: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+@app.route('/api/transcripts/<meeting_id>', methods=['DELETE'])
+def delete_permanent_transcript(meeting_id):
+    """Delete a permanent transcript record"""
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        # Delete the final transcript
+        cursor.execute('''
+        DELETE FROM final_meeting_transcripts
+        WHERE meeting_id = ?
+        ''', (meeting_id,))
+        
+        conn.commit()
+        
+        if cursor.rowcount > 0:
+            print(f"Deleted permanent transcript for meeting {meeting_id}")
+            return jsonify({
+                "success": True,
+                "message": f"Permanent transcript for meeting {meeting_id} deleted"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"No permanent transcript found for meeting {meeting_id}"
+            }), 404
+            
+    except Exception as e:
+        print(f"Error deleting permanent transcript: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+    finally:
+        conn.close()
+
+########################################################################################################################
+# Sentiment Analysis
+########################################################################################################################
+
 def analyze_sentiment(text):
     """
     Analyze the sentiment of the given text
     Returns a score between -1 (negative) and 1 (positive)
     """
     try:
-        # Here you would integrate with a sentiment analysis library
-        # For simplicity, this example uses a basic approach
-        # In a production app, you might use NLTK, TextBlob, or a cloud service
-        
         # Simple dictionary of positive and negative words
         positive_words = [
             'good', 'great', 'excellent', 'amazing', 'happy', 'like', 'love', 
@@ -475,18 +555,26 @@ def analyze_sentiment(text):
         return score
         
     except Exception as e:
-        logger.error(f"Error in sentiment analysis: {str(e)}")
+        print(f"Error in sentiment analysis: {str(e)}")
         return 0  # Return neutral on error
+
+########################################################################################################################
+# SocketIO Events
+########################################################################################################################
 
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection to WebSocket"""
-    logger.info('Client connected')
+    print('Client connected')
 
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle client disconnection from WebSocket"""
-    logger.info('Client disconnected')
+    print('Client disconnected')
+
+########################################################################################################################
+# Main - Run the app
+########################################################################################################################
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=8000)

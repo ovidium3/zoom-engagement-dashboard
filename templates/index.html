@@ -195,7 +195,7 @@
         </div>
 
         <div class="meeting-controls">
-            <button class="btn btn-info" onclick="viewTranscript()">View Meeting Transcript</button>
+            <button class="btn btn-info" onclick="viewTranscripts()">View Transcripts</button>
         </div>
     </div>
 
@@ -310,13 +310,8 @@
             });
 
             socket.on('meeting_ended', function(data) {
-                if (currentMeetingId === data.meeting_id) {
-                    $('#meeting-status').html(`<div class="alert alert-warning">Meeting ID: ${data.meeting_id} has ended</div>`);
-                    // Redirect to the transcript page after a short delay
-                    setTimeout(() => {
-                        window.location.href = `/meeting-transcript/${data.meeting_id}`;
-                    }, 3000);
-                }
+                // Redirect to the transcript page
+                window.location.href = data.redirect_url;
             });
             
             // Listen for talk time updates
@@ -328,12 +323,8 @@
             });
         });
 
-        function viewTranscript() {
-            if (currentMeetingId) {
-                window.location.href = `/meeting-transcript/${currentMeetingId}`;
-            } else {
-                alert('Please enter a meeting ID');
-            }
+        function viewTranscripts() {
+            window.location.href = `/transcript-list`;
         }
         
         function setupSpeechRecognition() {
@@ -618,13 +609,13 @@
             
             // Check if meeting exists and get status
             $.ajax({
-                url: `/api/meeting/${meetingId}`,
+                url: `/api/meetings/${meetingId}`,  // no type specification needed - default "info"
                 type: 'GET',
                 success: function(response) {
                     console.log('Meeting data loaded:', response);
                     
                     if (response.success) {
-                        const meetingStatus = response.data.status || 'unknown';
+                        const meetingStatus = response.data.status;
                         if (meetingStatus === 'active') {
                             $('#meeting-status').html(`<div class="alert alert-success">Meeting is active</div>`);
                         } else if (meetingStatus === 'ended') {
@@ -656,7 +647,7 @@
             if (!currentMeetingId) return;
             
             $.ajax({
-                url: `/api/participants/${currentMeetingId}`,
+                url: `/api/meetings/${currentMeetingId}?type=participants`,
                 type: 'GET',
                 success: function(response) {
                     console.log('Participants data loaded:', response);
@@ -778,7 +769,7 @@
             if (!currentMeetingId) return;
             
             $.ajax({
-                url: `/api/transcriptions/${currentMeetingId}`,
+                url: `/api/meetings/${currentMeetingId}?type=transcriptions`,
                 type: 'GET',
                 success: function(response) {
                     console.log('Transcriptions loaded:', response);
@@ -790,7 +781,6 @@
                 },
                 error: function(xhr, status, error) {
                     console.error('Error loading transcriptions:', error);
-                    alert('Error loading transcriptions. Please try again.');
                 }
             });
         }

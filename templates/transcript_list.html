@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Transcripts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .transcript-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .transcript-list th, .transcript-list td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .transcript-list th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .transcript-list tr:hover {
+            background-color: #f5f5f5;
+            cursor: pointer;
+        }
+        .no-transcripts {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+        .search-box {
+            margin-bottom: 20px;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Meeting Transcripts</h1>
+    
+    <div>
+        <button id="backButton" class="btn">← Back to Dashboard</button>
+        <button id="refreshList" class="btn">Refresh List</button>
+    </div>
+    
+    <input type="text" id="searchTranscripts" class="search-box" placeholder="Search transcripts...">
+    
+    <div id="transcriptListContainer">
+        <p>Loading transcripts...</p>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch all transcripts on page load
+            fetchTranscriptList();
+            
+            // Set up refresh button
+            document.getElementById('refreshList').addEventListener('click', function() {
+                fetchTranscriptList();
+            });
+
+            // Set up back button
+            document.getElementById('backButton').addEventListener('click', function() {
+                window.location.href = '/';
+            });
+            
+            // Set up search functionality
+            document.getElementById('searchTranscripts').addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = document.querySelectorAll('#transcriptTable tbody tr');
+                
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+        
+        function fetchTranscriptList() {
+            const container = document.getElementById('transcriptListContainer');
+            container.innerHTML = '<p>Loading transcripts...</p>';
+            
+            fetch('/api/transcripts')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data.length > 0) {
+                        displayTranscriptList(data.data);
+                    } else {
+                        container.innerHTML = '<p class="no-transcripts">No transcripts found.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching transcript list:', error);
+                    container.innerHTML = `<p class="no-transcripts">Error loading transcripts: ${error.message}</p>`;
+                });
+        }
+        
+        function displayTranscriptList(transcripts) {
+            const container = document.getElementById('transcriptListContainer');
+            
+            // Create table
+            let tableHTML = `
+                <table id="transcriptTable" class="transcript-list">
+                    <thead>
+                        <tr>
+                            <th>Meeting Topic</th>
+                            <th>Date</th>
+                            <th>Participants</th>
+                            <th>Meeting ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Add rows for each transcript
+            transcripts.forEach(transcript => {
+                const createdAt = new Date(transcript.created_at);
+                const formattedDate = `${createdAt.toLocaleDateString()} ${createdAt.toLocaleTimeString()}`;
+                
+                tableHTML += `
+                    <tr data-meeting-id="${transcript.meeting_id}">
+                        <td>${transcript.meeting_topic}</td>
+                        <td>${formattedDate}</td>
+                        <td>${transcript.participant_count}</td>
+                        <td>${transcript.meeting_id}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = tableHTML;
+            
+            // Add click handler to table rows
+            const rows = document.querySelectorAll('#transcriptTable tbody tr');
+            rows.forEach(row => {
+                row.addEventListener('click', function() {
+                    const meetingId = this.getAttribute('data-meeting-id');
+                    window.location.href = `/transcript-list/${meetingId}`;
+                });
+            });
+        }
+    </script>
+</body>
+</html>
