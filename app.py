@@ -395,6 +395,52 @@ def update_talk_time():
             "message": str(e)
         }), 500
 
+@app.route('/api/engagement-snapshot', methods=['POST'])
+def update_engagement_snapshot():
+    """Update engagement data snapshot for a meeting"""
+    try:
+        data = request.json
+        meeting_id = data.get('meeting_id')
+        participant_id = data.get('participant_id')
+        is_engaged = data.get('is_engaged', False)
+        timestamp = data.get('timestamp', datetime.now().isoformat())
+        browser_id = data.get('browser_id')
+        
+        if not meeting_id or not participant_id:
+            return jsonify({
+                "success": False,
+                "message": "Missing required fields: meeting_id or participant_id"
+            }), 400
+            
+        # Save engagement snapshot to database
+        result = save_engagement_snapshot_db(meeting_id, participant_id, is_engaged, timestamp, browser_id)
+        
+        if result:
+            # Emit socket event to notify clients
+            socketio.emit('engagement_update', {
+                'meeting_id': meeting_id,
+                'participant_id': participant_id,
+                'is_engaged': is_engaged,
+                'timestamp': timestamp
+            })
+            
+            return jsonify({
+                "success": True,
+                "message": f"Engagement snapshot recorded for participant {participant_id}"
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to record engagement snapshot"
+            }), 500
+            
+    except Exception as e:
+        print(f"Error updating engagement snapshot: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
 ########################################################################################################################
 # Transcript API Routes
 ########################################################################################################################

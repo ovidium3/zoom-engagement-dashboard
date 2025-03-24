@@ -12,35 +12,59 @@
     <div class="container-fluid dashboard-container">
         <h1 class="mb-4">Zoom Engagement Dashboard</h1>
         
-        <div class="row meeting-id-form">
+        <!-- Meeting ID & Metrics Row -->
+        <div class="row meeting-id-form mb-4">
+            <!-- Meeting ID Input Form -->
             <div class="col-md-6">
                 <div class="input-group">
                     <input type="text" id="meeting-id-input" class="form-control" placeholder="Enter Meeting ID">
                     <button class="btn btn-primary" id="load-meeting-btn">Load Meeting</button>
                 </div>
+                <div id="meeting-status" class="text-white mt-2"></div>
             </div>
+            
+            <!-- Metrics - Meeting Score, Engagement, Sentiment -->
             <div class="col-md-6">
-                <div id="meeting-status" class="text-white"></div>
-            </div>
-        </div>
-
-        <!-- Participants Video Grid -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <h5 class="text-light mb-3"><i class="fas fa-video me-2"></i> Participants</h5>
-                <div class="video-grid" id="participants-video-grid">
-                    <!-- Participant videos will be populated here dynamically -->
-                    <div class="text-center text-muted py-4">
-                        <p>Load a meeting to see participants</p>
+                <div class="metrics-top row">
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="metric-title">
+                                <i class="fas fa-chart-line me-1"></i> Meeting Score
+                            </div>
+                            <div class="metric-value">
+                                <span id="meeting-score">-</span><span id="meeting-score-trend" class="metric-trend"><i class="fas fa-arrow-up"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="metric-title">
+                                <i class="fas fa-users me-1"></i> Engagement
+                            </div>
+                            <div class="metric-value">
+                                <span id="engagement-score">-</span> <span id="engagement-trend" class="metric-trend"><i class="fas fa-arrow-right"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-card">
+                            <div class="metric-title">
+                                <i class="fas fa-smile me-1"></i> Sentiment
+                            </div>
+                            <div class="metric-value">
+                                <span id="sentiment-score">-</span> <span id="sentiment-trend" class="metric-trend"><i class="fas fa-arrow-up"></i></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Speech Recognition Controls -->
-        <div class="speech-controls mb-4">
-            <div class="row">
-                <div class="col-md-6">
+    
+        <!-- Speech Recognition & Participant Data Row -->
+        <div class="row mb-4">
+            <!-- Speech Recognition Controls -->
+            <div class="col-md-6">
+                <div class="speech-controls">
                     <h5><i class="fas fa-microphone me-2"></i> Speech Recognition Controls</h5>
                     <div class="form-group mb-3">
                         <label for="participant-select">Select Your Identity:</label>
@@ -67,134 +91,75 @@
                         </button>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <i class="fas fa-comment me-2"></i> Current Transcription
+            </div>
+
+            <!-- Participants Table Data -->
+            <div class="col-md-6">
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-users me-2"></i> Participants</span>
+                            <a href="#" class="text-light small">VIEW ALL</a>
                         </div>
-                        <div class="card-body">
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="participants-table" id="participants-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Engagement</th>
+                                    <th>Talk Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- dynamically populated with participants -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Main Content Row: Participants and Transcripts side by side -->
+        <div class="row">
+            <!-- Left Side: Participants Video Grid - Remove the Current Transcription card entirely -->
+            <div class="col-md-6">
+                <h5 class="text-light mb-3"><i class="fas fa-video me-2"></i> Participants</h5>
+                <div class="video-grid" id="participants-video-grid">
+                    <!-- dynamically populate participants here -->
+                    <div class="text-center text-muted py-4">
+                        <p>Load a meeting to see participants</p>
+                    </div>
+                </div>
+            </div>
+                                    
+            <!-- Right Side: Live Transcriptions - Including the interim and final transcript elements -->
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <i class="fas fa-comments me-2"></i> Live Transcription
+                    </div>
+                    <div class="card-body transcription-container">
+                        <div class="current-transcription mb-3">
                             <div id="interim-transcript" class="text-muted fst-italic"></div>
                             <div id="final-transcript" class="mt-2"></div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row">
-            <!-- Left Column: Live Transcriptions -->
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-comments me-2"></i> Live Transcriptions
-                    </div>
-                    <div class="card-body transcription-container" id="transcription-container">
-                        <div class="text-center text-muted" id="no-transcripts-message">
-                            <p>No transcriptions available. Start a meeting and enable live transcriptions.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Right Column: Engagement Metrics -->
-            <div class="col-md-4">
-                <div class="metrics-sidebar">
-                    <div class="alerts-section">
-                        <div class="alerts-header">
-                            <span>Alerts</span>
-                            <span class="text-secondary"><i class="fas fa-chevron-left"></i> 1 of 1 <i class="fas fa-chevron-right"></i></span>
-                        </div>
-                        <div class="alerts-content">
-                            <!-- Alert content would go here -->
-                            <div class="text-secondary">No new alerts</div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="metric-card">
-                                <div class="metric-title">
-                                    <i class="fas fa-chart-line me-1"></i> Meeting Score
-                                </div>
-                                <div class="metric-value">
-                                    80 <span class="metric-trend"><i class="fas fa-arrow-up"></i></span>
-                                </div>
+                        
+                        <hr class="my-3">
+                        
+                        <!-- Placeholder transcription container for when a meeting is not selected -->
+                        <div id="transcription-container">
+                            <div class="text-center text-muted" id="no-transcripts-message">
+                                <p>No transcription available. Start a meeting and enable live transcription.</p>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-6">
-                            <div class="metric-card">
-                                <div class="metric-title">
-                                    <i class="fas fa-users me-1"></i> Engagement
-                                </div>
-                                <div class="metric-value">
-                                    76 <span class="metric-trend"><i class="fas fa-arrow-right"></i></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="metric-card">
-                                <div class="metric-title">
-                                    <i class="fas fa-smile me-1"></i> Sentiment
-                                </div>
-                                <div class="metric-value">
-                                    92 <span class="metric-trend"><i class="fas fa-arrow-up"></i></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span><i class="fas fa-users me-2"></i> Participants</span>
-                                <span class="text-secondary small">VIEW ALL</span>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <table class="participants-table" id="participants-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Engagement</th>
-                                        <th>Talk Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Will be populated dynamically -->
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card my-4">
-            <div class="card-header">
-                <i class="fas fa-chart-bar me-2"></i> Participant Talk Time
-            </div>
-            <div class="card-body" id="talk-time-container">
-                <div class="text-center text-muted" id="no-participants-message">
-                    <p>No participant data available.</p>
-                </div>
-            </div>
-        </div>
-                
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="fas fa-smile me-2"></i> Sentiment Analysis
-            </div>
-            <div class="card-body" id="sentiment-container">
-                <div id="sentiment-chart">
-                    <canvas id="sentiment-canvas" width="300" height="200"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="meeting-controls">
+        <!-- View Past Transcripts -->
+        <div class="meeting-controls mt-3">
             <button class="btn btn-info" onclick="viewTranscripts()">View Transcripts</button>
         </div>
     </div>
@@ -204,787 +169,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-    
-    <script>
-        // Connect to WebSocket server
-        const socket = io();
-        let currentMeetingId = '';
-        let sentimentChart = null;
-        let meetingParticipants = [];
-        
-        // Initialize sentiment data
-        const sentimentData = {
-            positive: 0,
-            neutral: 0,
-            negative: 0
-        };
-        
-        // Speech Recognition Variables
-        let recognition = null;
-        let isRecognizing = false;
-        let isPaused = false;
-        let finalTranscript = '';
-        let interimTranscript = '';
-        let participantName = '';
-        let participantId = '';
-        let talkTimeStarted = null;
-        let totalTalkTime = 0;
-        let talkTimeInterval = null;
-        
-        // Initialize the dashboard when document is ready
-        $(document).ready(function() {
-            // Check if Speech Recognition is available
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                $('.speech-controls').html('<div class="alert alert-danger">Speech Recognition is not supported in your browser. Please use Chrome, Edge, or Safari.</div>');
-            } else {
-                setupSpeechRecognition();
-            }
-            
-            // Set up sentiment chart
-            initSentimentChart();
-            
-            // Handle meeting ID form submission
-            $('#load-meeting-btn').click(function() {
-                loadMeetingData();
-            });
-            
-            $('#meeting-id-input').keypress(function(e) {
-                if (e.which === 13) {
-                    loadMeetingData();
-                }
-            });
-            
-            // Speech Recognition Controls
-            $('#start-recognition-btn').click(startRecognition);
-            $('#pause-recognition-btn').click(pauseRecognition);
-            $('#stop-recognition-btn').click(stopRecognition);
-            
-            // Generate a random browser ID if not set
-            if (!localStorage.getItem('browser_id')) {
-                localStorage.setItem('browser_id', 'browser_' + Math.random().toString(36).substring(2, 10));
-            }
-            
-            // Handle participant selection
-            $('#participant-select').change(function() {
-                const selectedValue = $(this).val();
-                if (selectedValue) {
-                    const [id, name] = selectedValue.split('|');
-                    participantId = id;
-                    participantName = name;
-                    console.log(`Selected participant: ${participantName} (${participantId})`);
-                } else {
-                    participantId = '';
-                    participantName = '';
-                }
-            });
-            
-            // Listen for new transcriptions
-            socket.on('new_transcription', function(data) {
-                // Only process if this is for the current meeting
-                if (currentMeetingId === '' || data.meeting_id === currentMeetingId) {
-                    addTranscription(data);
-                    updateSentimentChart(data.sentiment_score);
-                }
-            });
-
-            // Listen for participant data updates
-            socket.on('participant_joined', function(data) {
-                if (currentMeetingId === data.meeting_id) {
-                    console.log('Participant joined:', data);
-                    fetchParticipants();
-                }
-            });
-
-            socket.on('participant_left', function(data) {
-                if (currentMeetingId === data.meeting_id) {
-                    console.log('Participant left:', data);
-                    fetchParticipants();
-                }
-            });
-
-            socket.on('meeting_started', function(data) {
-                if (currentMeetingId === data.meeting_id) {
-                    $('#meeting-status').html(`<div class="alert alert-success">Meeting ${data.topic} (ID: ${data.meeting_id}) is active</div>`);
-                    fetchParticipants();
-                }
-            });
-
-            socket.on('meeting_ended', function(data) {
-                // Redirect to the transcript page
-                window.location.href = data.redirect_url;
-            });
-            
-            // Listen for talk time updates
-            socket.on('talk_time_updated', function(data) {
-                if (currentMeetingId === data.meeting_id) {
-                    console.log('Talk time updated:', data);
-                    updateParticipantsList();
-                }
-            });
-        });
-
-        function viewTranscripts() {
-            window.location.href = `/transcript-list`;
-        }
-        
-        function setupSpeechRecognition() {
-            // Initialize speech recognition
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.maxAlternatives = 1;
-            recognition.lang = 'en-US'; // Default language - could make this configurable
-            
-            recognition.onstart = function() {
-                isRecognizing = true;
-                updateRecognitionStatus('on');
-                $('#start-recognition-btn').prop('disabled', true);
-                $('#pause-recognition-btn').prop('disabled', false);
-                $('#stop-recognition-btn').prop('disabled', false);
-                
-                // Start tracking talk time
-                talkTimeStarted = new Date();
-                talkTimeInterval = setInterval(updateTalkTime, 1000);
-            };
-            
-            recognition.onend = function() {
-                if (!isPaused) {
-                    isRecognizing = false;
-                    updateRecognitionStatus('off');
-                    $('#start-recognition-btn').prop('disabled', false);
-                    $('#pause-recognition-btn').prop('disabled', true);
-                    $('#stop-recognition-btn').prop('disabled', true);
-                    
-                    // Stop tracking talk time
-                    clearInterval(talkTimeInterval);
-                    talkTimeInterval = null;
-                }
-            };
-            
-            recognition.onresult = function(event) {
-                interimTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + ' ';
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
-                }
-                
-                // Display interim results
-                $('#interim-transcript').html(interimTranscript);
-                
-                // Display final results
-                $('#final-transcript').html(finalTranscript);
-                
-                // Send final results to server when appropriate
-                if (finalTranscript.trim() !== '' && !event.results[event.resultIndex].isFinal && event.resultIndex > 0) {
-                    sendTranscriptionToServer(finalTranscript);
-                    finalTranscript = '';
-                    $('#final-transcript').html('');
-                }
-            };
-            
-            recognition.onerror = function(event) {
-                console.error('Speech recognition error:', event.error);
-                alert(`Speech recognition error: ${event.error}`);
-                stopRecognition();
-            };
-        }
-        
-        function startRecognition() {
-            const selectedParticipant = $('#participant-select').val();
-            
-            if (!selectedParticipant) {
-                alert('Please select your identity from the participants dropdown.');
-                return;
-            }
-            
-            if (!currentMeetingId) {
-                alert('Please enter a meeting ID before starting recognition.');
-                $('#meeting-id-input').focus();
-                return;
-            }
-            
-            // Reset transcripts
-            finalTranscript = '';
-            interimTranscript = '';
-            $('#interim-transcript').html('');
-            $('#final-transcript').html('');
-            
-            // Start recognition
-            try {
-                recognition.start();
-                console.log('Recognition started');
-                
-                // Notify server that this participant is active
-                $.ajax({
-                    url: '/api/participant/active',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        meeting_id: currentMeetingId,
-                        participant_id: participantId,
-                        is_active: true,
-                        browser_id: localStorage.getItem('browser_id')
-                    }),
-                    success: function(response) {
-                        console.log('Participant marked active:', response);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error marking participant active:', error);
-                    }
-                });
-            } catch (e) {
-                console.error('Recognition failed to start:', e);
-            }
-        }
-        
-        function pauseRecognition() {
-            if (isRecognizing) {
-                isPaused = true;
-                recognition.stop();
-                updateRecognitionStatus('pause');
-                $('#pause-recognition-btn').prop('disabled', true);
-                $('#start-recognition-btn').prop('disabled', false);
-                $('#stop-recognition-btn').prop('disabled', false);
-                
-                // Pause talk time tracking
-                clearInterval(talkTimeInterval);
-            }
-        }
-        
-        function stopRecognition() {
-            isPaused = false;
-            isRecognizing = false;
-            
-            // Stop tracking talk time
-            clearInterval(talkTimeInterval);
-            talkTimeInterval = null;
-            
-            // Send any remaining transcript
-            if (finalTranscript.trim() !== '') {
-                sendTranscriptionToServer(finalTranscript);
-                finalTranscript = '';
-            }
-            
-            // Update UI
-            updateRecognitionStatus('off');
-            $('#interim-transcript').html('');
-            $('#final-transcript').html('');
-            $('#start-recognition-btn').prop('disabled', false);
-            $('#pause-recognition-btn').prop('disabled', true);
-            $('#stop-recognition-btn').prop('disabled', true);
-            
-            // Stop recognition
-            try {
-                recognition.stop();
-                console.log('Recognition stopped');
-            } catch (e) {
-                console.error('Recognition failed to stop:', e);
-            }
-            
-            // Send final talk time to server
-            sendTalkTimeToServer();
-            
-            // Notify server that this participant is no longer active
-            $.ajax({
-                url: '/api/participant/active',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    meeting_id: currentMeetingId,
-                    participant_id: participantId,
-                    is_active: false,
-                    browser_id: localStorage.getItem('browser_id')
-                }),
-                success: function(response) {
-                    console.log('Participant marked inactive:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error marking participant inactive:', error);
-                }
-            });
-        }
-        
-        function updateRecognitionStatus(status) {
-            const statusElement = $('#recognition-status');
-            const indicator = statusElement.find('.status-indicator');
-            
-            // Remove all status classes
-            indicator.removeClass('status-on status-off status-pause');
-            
-            // Add appropriate class and update text
-            if (status === 'on') {
-                indicator.addClass('status-on');
-                statusElement.html(`<span class="status-indicator status-on"></span> Active for ${participantName}`);
-            } else if (status === 'pause') {
-                indicator.addClass('status-pause');
-                statusElement.html(`<span class="status-indicator status-pause"></span> Paused`);
-            } else {
-                indicator.addClass('status-off');
-                statusElement.html(`<span class="status-indicator status-off"></span> Inactive`);
-            }
-        }
-        
-        function sendTranscriptionToServer(transcript) {
-            if (!transcript || !transcript.trim()) return;
-            
-            $.ajax({
-                url: '/api/transcription',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    meeting_id: currentMeetingId,
-                    participant_id: participantId,
-                    participant_name: participantName,
-                    transcript: transcript.trim(),
-                    timestamp: new Date().toISOString(),
-                    browser_id: localStorage.getItem('browser_id')
-                }),
-                success: function(response) {
-                    console.log('Transcription sent successfully:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error sending transcription:', error);
-                }
-            });
-        }
-        
-        function updateTalkTime() {
-            if (talkTimeStarted) {
-                const now = new Date();
-                const talkTimeSec = Math.floor((now - talkTimeStarted) / 1000) + totalTalkTime;
-                
-                console.log(`Talk time: ${formatTime(talkTimeSec)}`);
-            }
-        }
-        
-        function sendTalkTimeToServer() {
-            if (talkTimeStarted) {
-                const now = new Date();
-                totalTalkTime += Math.floor((now - talkTimeStarted) / 1000);
-                talkTimeStarted = null;
-                
-                console.log(`Sending total talk time: ${totalTalkTime}s`);
-                
-                $.ajax({
-                    url: '/api/talk-time',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        meeting_id: currentMeetingId,
-                        participant_id: participantId,
-                        talk_time: totalTalkTime,
-                        browser_id: localStorage.getItem('browser_id')
-                    }),
-                    success: function(response) {
-                        console.log('Talk time sent successfully:', response);
-                        updateParticipantsList();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error sending talk time:', error);
-                    }
-                });
-            }
-        }
-        
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${mins}:${secs < 10 ? '0' + secs : secs}`;
-        }
-        
-        function loadMeetingData() {
-            const meetingId = $('#meeting-id-input').val().trim();
-            
-            if (!meetingId) {
-                alert('Please enter a meeting ID');
-                return;
-            }
-            
-            currentMeetingId = meetingId;
-            console.log(`Loading data for meeting ID: ${meetingId}`);
-            
-            // Check if meeting exists and get status
-            $.ajax({
-                url: `/api/meetings/${meetingId}`,  // no type specification needed - default "info"
-                type: 'GET',
-                success: function(response) {
-                    console.log('Meeting data loaded:', response);
-                    
-                    if (response.success) {
-                        const meetingStatus = response.data.status;
-                        if (meetingStatus === 'active') {
-                            $('#meeting-status').html(`<div class="alert alert-success">Meeting is active</div>`);
-                        } else if (meetingStatus === 'ended') {
-                            $('#meeting-status').html(`<div class="alert alert-warning">Meeting has ended</div>`);
-                        } else {
-                            $('#meeting-status').html(`<div class="alert alert-info">Meeting status: ${meetingStatus}</div>`);
-                        }
-                        
-                        // Fetch participants
-                        fetchParticipants();
-                        
-                        // Get transcriptions
-                        fetchTranscriptions();
-                        
-                        // Reset sentiment chart
-                        resetSentimentChart();
-                    } else {
-                        $('#meeting-status').html(`<div class="alert alert-danger">Error: ${response.message}</div>`);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error loading meeting data:', error);
-                    $('#meeting-status').html(`<div class="alert alert-danger">Meeting not found or server error</div>`);
-                }
-            });
-        }
-        
-        function fetchParticipants() {
-            if (!currentMeetingId) return;
-            
-            $.ajax({
-                url: `/api/meetings/${currentMeetingId}?type=participants`,
-                type: 'GET',
-                success: function(response) {
-                    console.log('Participants data loaded:', response);
-                    
-                    if (response.success) {
-                        meetingParticipants = response.data;
-                        populateParticipantsDropdown(response.data);
-                        displayParticipantsGrid(response.data);
-                        displayParticipantsTable(response.data);
-                        displayParticipantsTalkTime(response.data);
-                    } else {
-                        console.error('Error in participants response:', response.message);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error loading participants data:', error);
-                }
-            });
-        }
-        
-        function populateParticipantsDropdown(participants) {
-            const select = $('#participant-select');
-            
-            // Clear existing options except the placeholder
-            select.find('option:not(:first)').remove();
-            
-            // Sort participants by name
-            participants.sort((a, b) => a.name.localeCompare(b.name));
-            
-            // Add participants to dropdown
-            participants.forEach(participant => {
-                select.append(`<option value="${participant.id}|${participant.name}">${participant.name}</option>`);
-            });
-            
-            // If we previously selected a participant who is still in the meeting, select them again
-            if (participantId) {
-                const participantExists = participants.some(p => p.id === participantId);
-                if (participantExists) {
-                    select.val(`${participantId}|${participantName}`);
-                } else {
-                    participantId = '';
-                    participantName = '';
-                }
-            }
-        }
-        
-        function displayParticipantsGrid(participants) {
-            const grid = $('#participants-video-grid');
-            
-            if (!participants || participants.length === 0) {
-                grid.html(`<div class="text-center text-muted py-4">
-                    <p>No participants in this meeting</p>
-                </div>`);
-                return;
-            }
-            
-            // Clear existing grid
-            grid.empty();
-            
-            // Add participants to grid
-            participants.forEach(participant => {
-                // Calculate talk time percentage of total meeting time if available
-                let talkTimePercentage = 0;
-                if (participant.total_meeting_time > 0) {
-                    talkTimePercentage = Math.round((participant.talk_time / participant.total_meeting_time) * 100);
-                }
-                
-                // Add active indicator if participant is currently speaking
-                const activeClass = participant.is_active ? 'video-active' : '';
-                
-                grid.append(`
-                    <div class="video-container ${activeClass}">
-                        <div class="video-overlay">${participant.name}</div>
-                        <div class="engagement-indicator">${talkTimePercentage}% Talk Time</div>
-                        <!-- Placeholder for video -->
-                        <div class="d-flex align-items-center justify-content-center h-100">
-                            <i class="fas fa-user-circle fa-3x text-secondary"></i>
-                        </div>
-                    </div>
-                `);
-            });
-        }
-        
-        function displayParticipantsTable(participants) {
-            const tableBody = $('#participants-table tbody');
-            
-            // Clear existing rows
-            tableBody.empty();
-            
-            if (!participants || participants.length === 0) {
-                tableBody.html(`<tr><td colspan="3" class="text-center">No participants</td></tr>`);
-                return;
-            }
-            
-            // Sort participants by engagement score (descending)
-            participants.sort((a, b) => (b.engagement_score || 0) - (a.engagement_score || 0));
-            
-            // Add participants to table
-            participants.forEach(participant => {
-                // Calculate talk time percentage
-                let talkTimePercentage = 0;
-                if (participant.total_meeting_time > 0) {
-                    talkTimePercentage = Math.round((participant.talk_time / participant.total_meeting_time) * 100);
-                }
-                
-                const engagementScore = participant.engagement_score || '-';
-                
-                tableBody.append(`
-                    <tr>
-                        <td class="text-secondary">${participant.name}</td>
-                        <td>${engagementScore}</td>
-                        <td>${talkTimePercentage}%</td>
-                    </tr>
-                `);
-            });
-        }
-        
-        function fetchTranscriptions() {
-            if (!currentMeetingId) return;
-            
-            $.ajax({
-                url: `/api/meetings/${currentMeetingId}?type=transcriptions`,
-                type: 'GET',
-                success: function(response) {
-                    console.log('Transcriptions loaded:', response);
-                    if (response.success) {
-                        displayTranscriptions(response.data);
-                    } else {
-                        console.error('Error in transcriptions response:', response.message);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error loading transcriptions:', error);
-                }
-            });
-        }
-        
-        function displayParticipantsTalkTime(participants) {
-            const container = $('#talk-time-container');
-            
-            if (!participants || participants.length === 0) {
-                container.html(`<div class="text-center text-muted">
-                    <p>No participant data available.</p>
-                </div>`);
-                return;
-            }
-            
-            // Clear existing content
-            container.empty();
-            
-            // Create a bar chart container
-            container.html('<canvas id="talk-time-chart" width="400" height="200"></canvas>');
-            
-            // Sort participants by talk time (descending)
-            participants.sort((a, b) => b.talk_time - a.talk_time);
-            
-            // Prepare data for chart
-            const labels = participants.map(p => p.name);
-            const talkTimeData = participants.map(p => p.talk_time);
-            const backgroundColors = participants.map(() => 'rgba(54, 162, 235, 0.6)');
-            
-            // Create chart
-            const ctx = document.getElementById('talk-time-chart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Talk Time (seconds)',
-                        data: talkTimeData,
-                        backgroundColor: backgroundColors,
-                        borderColor: backgroundColors.map(c => c.replace('0.6', '1')),
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Seconds'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        function initSentimentChart() {
-            const ctx = document.getElementById('sentiment-canvas').getContext('2d');
-            sentimentChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Positive', 'Neutral', 'Negative'],
-                    datasets: [{
-                        data: [0, 0, 0],
-                        backgroundColor: [
-                            'rgba(75, 192, 192, 0.6)',
-                            'rgba(201, 203, 207, 0.6)',
-                            'rgba(255, 99, 132, 0.6)'
-                        ],
-                        borderColor: [
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(201, 203, 207, 1)',
-                            'rgba(255, 99, 132, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
-                    }
-                }
-            });
-        }
-        
-        function resetSentimentChart() {
-            sentimentData.positive = 0;
-            sentimentData.neutral = 0;
-            sentimentData.negative = 0;
-            
-            updateSentimentChartDisplay();
-        }
-        
-        function updateSentimentChart(score) {
-            if (score > 0.1) {
-                sentimentData.positive++;
-            } else if (score < -0.1) {
-                sentimentData.negative++;
-            } else {
-                sentimentData.neutral++;
-            }
-            
-            updateSentimentChartDisplay();
-        }
-        
-        function updateSentimentChartDisplay() {
-            if (sentimentChart) {
-                sentimentChart.data.datasets[0].data = [
-                    sentimentData.positive,
-                    sentimentData.neutral,
-                    sentimentData.negative
-                ];
-                sentimentChart.update();
-            }
-        }
-        
-        function displayTranscriptions(transcriptions) {
-            const container = $('#transcription-container');
-            
-            if (!transcriptions || transcriptions.length === 0) {
-                container.html(`<div class="text-center text-muted">
-                    <p>No transcriptions available. Start a meeting and enable live transcriptions.</p>
-                </div>`);
-                return;
-            }
-            
-            // Hide the "no transcripts" message
-            $('#no-transcripts-message').hide();
-            
-            // Clear container if loading for the first time
-            if (container.find('.transcription-item').length === 0) {
-                container.empty();
-            }
-            
-            // Sort by timestamp (newest first for display purposes)
-            transcriptions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
-            // Add each transcription
-            transcriptions.forEach(transcription => {
-                addTranscription(transcription);
-            });
-        }
-        
-        function addTranscription(transcription) {
-            const container = $('#transcription-container');
-            
-            // Hide the "no transcripts" message
-            $('#no-transcripts-message').hide();
-            
-            // Format timestamp
-            const timestamp = moment(transcription.timestamp).format('HH:mm:ss');
-            
-            // Determine sentiment class
-            let sentimentClass = 'neutral';
-            let sentimentIcon = 'meh';
-            
-            if (transcription.sentiment_score > 0.1) {
-                sentimentClass = 'positive';
-                sentimentIcon = 'smile';
-            } else if (transcription.sentiment_score < -0.1) {
-                sentimentClass = 'negative';
-                sentimentIcon = 'frown';
-            }
-            
-            // Check if this transcription already exists
-            const existingItem = container.find(`.transcription-item[data-id="${transcription.id}"]`);
-            if (existingItem.length > 0) {
-                return; // Skip if already added
-            }
-            
-            // Create the transcription item
-            const transcriptionItem = $(`
-                <div class="transcription-item sentiment-${sentimentClass}" data-id="${transcription.id}">
-                    <div class="transcription-header">
-                        <span class="transcription-participant">${transcription.participant_name}</span>
-                        <span class="transcription-time">${timestamp}</span>
-                        <span class="transcription-sentiment">
-                            <i class="fas fa-${sentimentIcon}"></i>
-                        </span>
-                    </div>
-                    <div class="transcription-content">${transcription.transcript}</div>
-                </div>
-            `);
-            
-            // Add to the beginning of the container
-            container.prepend(transcriptionItem);
-            
-            // Limit to latest 100 transcriptions for performance
-            const items = container.find('.transcription-item');
-            if (items.length > 100) {
-                items.slice(100).remove();
-            }
-        }
-        
-        function updateParticipantsList() {
-            // Update the participants table and video grid
-            fetchParticipants();
-        }
-    </script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

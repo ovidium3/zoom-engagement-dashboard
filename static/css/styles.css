@@ -1,7 +1,7 @@
 /* Main dashboard layout and colors */
 body {
-    background-color: #0f1014;
-    color: #ffffff;
+    background-color: #f5f7fa;
+    color: #2d3748;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
@@ -13,39 +13,39 @@ body {
 
 /* Header styling */
 h1 {
-    color: #ffffff;
+    color: #2d3748;
     font-size: 1.5rem;
     font-weight: 500;
     margin-bottom: 1.5rem;
 }
 
 h5 {
-    color: #ffffff;
+    color: #2d3748;
     font-size: 1rem;
     font-weight: 500;
 }
 
 /* Card styling to match the design */
 .card {
-    background-color: #1a1c23;
+    background-color: #ffffff;
     border: none;
     border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     margin-bottom: 20px;
     overflow: hidden;
 }
 
 .card-header {
-    background-color: #1a1c23;
-    border-bottom: 1px solid #2a2d36;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
     padding: 15px;
     font-weight: 500;
     font-size: 14px;
-    color: #ffffff;
+    color: #2d3748;
 }
 
 .card-body {
-    background-color: #1a1c23;
+    background-color: #ffffff;
     padding: 15px;
 }
 
@@ -59,11 +59,11 @@ h5 {
 
 .video-container {
     position: relative;
-    background-color: #1a1c23;
+    background-color: #ffffff;
     border-radius: 10px;
     overflow: hidden;
     height: 180px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .video-container::before {
@@ -73,7 +73,7 @@ h5 {
     left: 0;
     right: 0;
     height: 24px;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.1);
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
     z-index: 1;
@@ -84,7 +84,7 @@ h5 {
     top: 4px;
     left: 10px;
     font-size: 12px;
-    color: #ffffff;
+    color: #2d3748;
     z-index: 2;
 }
 
@@ -92,8 +92,8 @@ h5 {
     position: absolute;
     top: 4px;
     right: 10px;
-    background-color: rgba(0, 0, 0, 0.6);
-    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.8);
+    color: #2d3748;
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 12px;
@@ -103,37 +103,41 @@ h5 {
 /* Stylize different talk time indicators */
 .video-container:nth-child(1) .engagement-indicator {
     background-color: rgba(76, 175, 80, 0.8);
+    color: #ffffff;
 }
 
 .video-container:nth-child(2) .engagement-indicator {
     background-color: rgba(103, 58, 183, 0.8);
+    color: #ffffff;
 }
 
 .video-container:nth-child(3) .engagement-indicator {
     background-color: rgba(33, 150, 243, 0.8);
+    color: #ffffff;
 }
 
 .video-container:nth-child(4) .engagement-indicator {
     background-color: rgba(244, 67, 54, 0.8);
+    color: #ffffff;
 }
 
 /* Metrics sidebar styling */
 .metrics-sidebar {
-    background-color: #1a1c23;
+    background-color: #ffffff;
     border-radius: 10px;
     padding: 0;
     overflow: hidden;
 }
 
 .alerts-section {
-    background-color: #1a1c23;
+    background-color: #ffffff;
     padding: 0;
     margin-bottom: 20px;
 }
 
 .alerts-header {
-    background-color: #1a1c23;
-    border-bottom: 1px solid #2a2d36;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
     padding: 15px;
     display: flex;
     justify-content: space-between;
@@ -143,31 +147,31 @@ h5 {
 
 .alerts-content {
     padding: 15px;
-    color: #adb5bd;
+    color: #4a5568;
 }
 
 /* Metric cards */
 .metric-card {
-    background-color: #1a1c23;
+    background-color: #ffffff;
     border-radius: 10px;
     padding: 15px;
     height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid #2a2d36;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
 }
 
 .metric-title {
-    color: #adb5bd;
+    color: #4a5568;
     font-size: 14px;
     font-weight: 500;
     margin-bottom: 5px;
 }
 
 .metric-value {
-    color: #ffffff;
+    color: #2d3748;
     font-size: 24px;
     font-weight: 600;
     display: flex;
@@ -198,12 +202,12 @@ h5 {
 .participants-table td {
     padding: 10px 15px;
     text-align: left;
-    border-bottom: 1px solid #2a2d36;
-    color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    color: #2d3748;
 }
 
 .participants-table th {
-    color: #adb5bd;
+    color: #4a5568;
     font-weight: 500;
     font-size: 12px;
 }
@@ -214,17 +218,17 @@ h5 {
 
 /* Form controls */
 .form-control {
-    background-color: #2a2d36;
-    border: 1px solid #3a3d46;
-    color: #ffffff;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #2d3748;
     border-radius: 6px;
 }
 
 .form-control:focus {
-    background-color: #2a2d36;
+    background-color: #ffffff;
     border-color: #4a7bff;
     box-shadow: 0 0 0 0.2rem rgba(74, 123, 255, 0.25);
-    color: #ffffff;
+    color: #2d3748;
 }
 
 .input-group .btn {
@@ -261,17 +265,17 @@ h5 {
 
 .transcription-item {
     padding: 10px 0;
-    border-bottom: 1px solid #2a2d36;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .participant-name {
     font-weight: 500;
-    color: #ffffff;
+    color: #2d3748;
 }
 
 .transcript-text {
     margin-top: 5px;
-    color: #dfdfdf;
+    color: #4a5568;
 }
 
 /* Sentiment indicators */
@@ -304,10 +308,11 @@ h5 {
     margin-right: 10px;
     min-width: 30px;
     transition: width 0.5s ease;
+    color: #ffffff;
 }
 
 .participant-bar .label {
-    color: #ffffff;
+    color: #2d3748;
     font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
@@ -315,7 +320,7 @@ h5 {
 }
 
 .participant-bar .value {
-    color: #adb5bd;
+    color: #4a5568;
     font-size: 14px;
     min-width: 60px;
     text-align: right;
@@ -421,6 +426,14 @@ h5 {
     justify-content: center;
     align-items: center;
     height: 100%;
+}
+
+.current-transcription {
+    background-color: rgba(0, 123, 255, 0.1);
+    border-left: 3px solid #0d6efd;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
 }
 
 /* For responsive design */

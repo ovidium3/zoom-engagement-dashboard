@@ -243,6 +243,53 @@ def save_engagement_data_db(meeting_id, participant_data):
     finally:
         conn.close()
 
+def save_engagement_snapshot_db(meeting_id, participant_id, is_engaged, timestamp, browser_id):
+    """Save engagement snapshot data to the database"""
+    meeting_id = meeting_id.replace(" ", "")  # remove spaces to ensure consistency
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        # First, we need to make sure the participant exists in the engagement_data table
+        cursor.execute('''
+        SELECT id FROM engagement_data
+        WHERE meeting_id = ? AND participant_id = ?
+        ''', (meeting_id, participant_id))
+        
+        result = cursor.fetchone()
+        
+        if not result:
+            # If participant doesn't exist, create a basic record first
+            cursor.execute('''
+            INSERT INTO engagement_data (
+                meeting_id, participant_id, participant_name, join_time
+            )
+            VALUES (?, ?, ?, ?)
+            ''', (
+                meeting_id,
+                participant_id,
+                f"Participant {participant_id}",  # Default name if not known
+                timestamp
+            ))
+        
+        # Now we can update the engagement data
+        # Since we don't have a dedicated engagement_snapshots table,
+        # we'll update the is_active field in the engagement_data table
+        cursor.execute('''
+        UPDATE engagement_data
+        SET is_active = ?, browser_id = ?
+        WHERE meeting_id = ? AND participant_id = ?
+        ''', (is_engaged, browser_id, meeting_id, participant_id))
+        
+        conn.commit()
+        print(f"Engagement snapshot saved for meeting {meeting_id}, participant {participant_id}: {is_engaged}")
+        return True
+    except Exception as e:
+        print(f"Error saving engagement snapshot: {str(e)}")
+        return False
+    finally:
+        conn.close()
+
 def update_participant_leave_time_db(meeting_id, participant_id):
     """Update the leave time for a participant"""
     try:
