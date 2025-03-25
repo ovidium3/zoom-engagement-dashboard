@@ -597,6 +597,9 @@ function displayParticipantsGrid(participants) {
         let talkTimePercentage = 0;
         if (totalTalkTime > 0) {
             talkTimePercentage = Math.round((participant.talk_time / totalTalkTime) * 100);
+            if (talkTimePercentage > 100) {
+                talkTimePercentage = 100;
+            }
         }
         
         // Add active indicator if participant is currently speaking
@@ -638,6 +641,9 @@ function displayParticipantsTable(participants) {
         let talkTimePercentage = 0;
         if (totalTalkTime > 0) {
             talkTimePercentage = Math.round((participant.talk_time / totalTalkTime) * 100);
+            if (talkTimePercentage > 100) {
+                talkTimePercentage = 100;
+            }
         }
         
         const engagementScore = Math.round(participant.engagement_score) || '-';
