@@ -360,6 +360,9 @@ def update_talk_time():
         meeting_id = data.get('meeting_id')
         participant_id = data.get('participant_id')
         talk_time = data.get('talk_time', 0)
+        print("!!!TALK TIME!!!")
+        print(talk_time)
+        print(meeting_id)
         
         if not meeting_id or not participant_id:
             return jsonify({
@@ -398,22 +401,28 @@ def update_talk_time():
 @app.route('/api/engagement-snapshot', methods=['POST'])
 def update_engagement_snapshot():
     """Update engagement data snapshot for a meeting"""
+    print("inside engagement snapshot")
     try:
         data = request.json
+        print(data)
         meeting_id = data.get('meeting_id')
-        participant_id = data.get('participant_id')
+        participants = data.get('participants')
+        participant_id = participants[0].get('id')
         is_engaged = data.get('is_engaged', False)
         timestamp = data.get('timestamp', datetime.now().isoformat())
         browser_id = data.get('browser_id')
+        engagement_score = participants[0].get('engagement_score', 0)
         
         if not meeting_id or not participant_id:
+            print(meeting_id, participant_id)
+            print("bad req")
             return jsonify({
                 "success": False,
                 "message": "Missing required fields: meeting_id or participant_id"
             }), 400
             
         # Save engagement snapshot to database
-        result = save_engagement_snapshot_db(meeting_id, participant_id, is_engaged, timestamp, browser_id)
+        result = save_engagement_snapshot_db(meeting_id, participant_id, is_engaged, timestamp, browser_id, engagement_score)
         
         if result:
             # Emit socket event to notify clients

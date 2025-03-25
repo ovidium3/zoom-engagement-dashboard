@@ -41,6 +41,7 @@ def init_db():
             leave_time TEXT,
             duration INTEGER DEFAULT 0,
             talk_time INTEGER DEFAULT 0,
+            engagement_score INTEGER DEFAULT 0,
             browser_id TEXT,
             is_active BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -243,7 +244,7 @@ def save_engagement_data_db(meeting_id, participant_data):
     finally:
         conn.close()
 
-def save_engagement_snapshot_db(meeting_id, participant_id, is_engaged, timestamp, browser_id):
+def save_engagement_snapshot_db(meeting_id, participant_id, is_engaged, timestamp, browser_id, engagement_score):
     """Save engagement snapshot data to the database"""
     meeting_id = meeting_id.replace(" ", "")  # remove spaces to ensure consistency
     try:
@@ -262,14 +263,15 @@ def save_engagement_snapshot_db(meeting_id, participant_id, is_engaged, timestam
             # If participant doesn't exist, create a basic record first
             cursor.execute('''
             INSERT INTO engagement_data (
-                meeting_id, participant_id, participant_name, join_time
+                meeting_id, participant_id, participant_name, join_time, engagement_score
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
             ''', (
                 meeting_id,
                 participant_id,
                 f"Participant {participant_id}",  # Default name if not known
-                timestamp
+                timestamp,
+                engagement_score,
             ))
         
         # Now we can update the engagement data

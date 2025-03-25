@@ -41,6 +41,7 @@ let participantId = '';
 let talkTimeStarted = null;
 let totalTalkTime = 0;
 let talkTimeInterval = null;
+let meetingStarted = false;
 
 // Initialize the dashboard when document is ready
 $(document).ready(function() {
@@ -115,13 +116,13 @@ $(document).ready(function() {
     socket.on('meeting_started', function(data) {
         if (currentMeetingId === data.meeting_id) {
             $('#meeting-status').html(`<div class="alert alert-success">Meeting ${data.topic} (ID: ${data.meeting_id}) is active</div>`);
+            meetingStarted = true;
             fetchParticipants();
         }
     });
 
-    socket.on('meeting_ended', function(data) {
-        // Redirect to the transcript page
-        window.location.href = data.redirect_url;
+    socket.on('meeting_ended', function() {
+        meetingStarted = false;
     });
     
     // Listen for talk time updates
@@ -140,9 +141,9 @@ $(document).ready(function() {
         if (currentMeetingId) {
             calculateOverallMetrics();
         }
-    }, 3000); // Update every 3 seconds
+    }, 5000); // Update every 5 seconds
 
-    setInterval(saveEngagementSnapshot, 10000);
+    setInterval(saveEngagementSnapshot, 5000);
 
     setInterval(periodicTalkTimeUpdate, 1000); // Update every second
 });
@@ -229,6 +230,11 @@ function startRecognition() {
     if (!currentMeetingId) {
         alert('Please enter a meeting ID before starting recognition.');
         $('#meeting-id-input').focus();
+        return;
+    }
+
+    if (!meetingStarted) {
+        alert('Meeting has not started yet. Please wait for the host to start the meeting.');
         return;
     }
     
@@ -475,7 +481,7 @@ function loadMeetingData() {
         return;
     }
     
-    currentMeetingId = meetingId;
+    currentMeetingId = meetingId.replace(/\s+/g, '');
     console.log(`Loading data for meeting ID: ${meetingId}`);
     
     // Check if meeting exists and get status
@@ -515,21 +521,21 @@ function loadMeetingData() {
 }
 
 function fetchParticipants() {
-    if (!currentMeetingId) return;
+    if (!meetingStarted) return;
     
     $.ajax({
         url: `/api/meetings/${currentMeetingId}?type=participants`,
         type: 'GET',
         success: function(response) {
-            print('Participants data loaded:', response);
+            console.log('Participants data loaded:', response);
             
             if (response.success) {
                 meetingParticipants = response.data;
                 
                 // Debug: Check what data we actually received
-                print('Participant data details:');
+                console.log('Participant data details:');
                 meetingParticipants.forEach(p => {
-                    print(`${p.name}: talk_time=${p.talk_time}, total_meeting_time=${p.total_meeting_time}`);
+                    console.log(`${p.name}: talk_time=${p.talk_time}, total_meeting_time=${totalTalkTime}`);
                 });
                 
                 populateParticipantsDropdown(response.data);
@@ -589,8 +595,8 @@ function displayParticipantsGrid(participants) {
     participants.forEach(participant => {
         // Calculate talk time percentage of total meeting time if available
         let talkTimePercentage = 0;
-        if (participant.total_meeting_time > 0) {
-            talkTimePercentage = Math.round((participant.talk_time / participant.total_meeting_time) * 100);
+        if (totalTalkTime > 0) {
+            talkTimePercentage = Math.round((participant.talk_time / totalTalkTime) * 100);
         }
         
         // Add active indicator if participant is currently speaking
@@ -630,8 +636,8 @@ function displayParticipantsTable(participants) {
     participants.forEach(participant => {
         // Calculate talk time percentage
         let talkTimePercentage = 0;
-        if (participant.total_meeting_time > 0) {
-            talkTimePercentage = Math.round((participant.talk_time / participant.total_meeting_time) * 100);
+        if (totalTalkTime > 0) {
+            talkTimePercentage = Math.round((participant.talk_time / totalTalkTime) * 100);
         }
         
         const engagementScore = Math.round(participant.engagement_score) || '-';
@@ -647,7 +653,7 @@ function displayParticipantsTable(participants) {
 }
 
 function fetchTranscriptions() {
-    if (!currentMeetingId) return;
+    if (!meetingStarted) return;
     
     $.ajax({
         url: `/api/meetings/${currentMeetingId}?type=transcriptions`,
@@ -667,13 +673,40 @@ function fetchTranscriptions() {
     });
 }
 
+function fetchTalkTime(participantId, callback) {
+    if (!meetingStarted) return;
+
+    $.ajax({
+        url: `/api/meetings/${currentMeetingId}?type=participants`,
+        type: 'GET',
+        success: function(response) {
+            console.log('participants loaded:', response);
+            if (response.success) {
+                // Find the participant and pass their talk_time to the callback
+                const participant = response.data.find(p => p.id === participantId);
+                if (participant) {
+                    console.log(participant.talk_time); // Call the callback with the talk time
+                    return participant.talk_time;
+                } else {
+                    console.error('Participant not found');
+                }
+            } else {
+                console.error('Error in participants response:', response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading participants:', error);
+        }
+    });
+}
+
 function calculateParticipantEngagementScores(participants) {
     // Calculate total talk time across all participants
-    const totalTalkTime = participants.reduce((sum, p) => sum + (p.talk_time || 0), 0);
-    const totalMeetingTime = Math.max(...participants.map(p => p.total_meeting_time || 0));
+    // const totalTalkTime = participants.reduce((sum, p) => sum + (p.talk_time || 0), 0);
+    // const totalMeetingTime = Math.max(...participants.map(p => p.total_meeting_time || 0));
     
     participants.forEach(participant => {
-        let talkTimeScore = 0;
+        let talkTimeScore = fetchTalkTime(participant.id);
         
         // Talk time portion score (0-60 points)
         if (totalTalkTime > 0) {
@@ -699,6 +732,7 @@ function calculateParticipantEngagementScores(participants) {
         participant.engagement_score = Math.min(100, talkTimeScore + activeBonus + consistencyScore);
     });
 }
+
 
 function trackParticipantActivity(participantId, activityType) {
     // Find participant in array
@@ -775,7 +809,7 @@ function calculateEngagementMetrics() {
 }
 
 function saveEngagementSnapshot() {
-    if (!currentMeetingId) return;
+    if (!meetingStarted) return;
     
     const snapshot = {
         meeting_id: currentMeetingId,
