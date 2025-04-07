@@ -12,3 +12,6 @@ Simple, clean UI built with Bootstrap
 Python 3.8 or higher
 Zoom Developer Account with API credentials
 ngrok for webhook setup (or similar tool for exposing local server)
+
+Demonstration video:
+https://drive.google.com/file/d/11HaCPtx1z9lUaqkjlUn6TuIjhcY8-eeZ/view?usp=drive_link
